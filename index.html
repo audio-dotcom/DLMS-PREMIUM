@@ -43,12 +43,14 @@ nav button{flex:1;max-width:150px;background:#1c1428;border:1px solid var(--cd);
 .crown{color:var(--c);text-shadow:var(--gl) var(--c)}
 .gateOpen{color:var(--g)}.gateClosed{color:var(--r)}
 .subtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
-.btn:disabled{opacity:.4;cursor:not-allowed}.btn:disabled:hover{background:#1c1428;color:var(--t);box-shadow:none}
-.bar{height:10px;background:#241a30;border:1px solid var(--cd);margin:10px 0 6px}.bar i{display:block;height:100%;width:0;background:var(--c);box-shadow:var(--gl) var(--c);transition:width .2s}
-.warn{color:var(--y)}.pv{width:160px;height:160px;border:1px solid var(--cd);background:#000;image-rendering:auto}
-@media(max-width:480px){nav button{font-size:8px;letter-spacing:0;padding:10px 0}}
+input[type=text],input[type=password]{background:#150a1f;color:var(--t);border:1px solid var(--cd);padding:8px;font:700 13px Orbitron;width:100%}
+input[type=file]{color:var(--d);font:600 13px Rajdhani;max-width:100%}.row>input{min-width:0}
+progress{width:100%;height:10px;accent-color:var(--c)}
+.mo{position:fixed;inset:0;z-index:20;background:#0a0512e6;display:none;align-items:center;justify-content:center;padding:16px}.mo.on{display:flex}
+.chip{display:inline-block;padding:3px 10px;margin:0 6px 6px 0;border:1px solid var(--cd);border-radius:20px;font-size:12px;color:var(--d)}.chip.on{color:var(--g);border-color:var(--g)}
+#gs{padding:8px 11px}.pv{width:180px;height:180px;border:1px solid var(--cd);background:#000;margin:10px 0}
 </style></head><body>
-<header><h1>DLMS <span class="crown">PREMIUM</span><small>YSN AUDIO · X-OVER · GATE · 5-PRESET</small></h1><span id="genPill" class="pill" style="display:none;color:var(--r);border-color:var(--r)">● TEST SIGNAL</span><span id="st" class="pill">OFFLINE</span><button class="btn" id="cn">CONNECT</button><button class="btn v" id="dm">DEMO</button></header>
+<header><h1>DLMS <span class="crown">PREMIUM</span><small>YSN AUDIO · X-OVER · GATE · 5-PRESET</small></h1><span id="genPill" class="pill" style="display:none;color:var(--r);border-color:var(--r)">● TEST SIGNAL</span><span id="st" class="pill">OFFLINE</span><button class="btn" id="cn">CONNECT</button><button class="btn v" id="dm">DEMO</button><button class="btn" id="gs" title="Pengaturan alat">⚙</button></header>
 <main>
 <section id="dash" class="pg on"><div class="gr2"><div class="p g"><div class="lb"><span>IN L</span><span>INPUT</span></div><canvas id="gL"></canvas></div><div class="p g"><div class="lb"><span>IN R</span><button class="btn red" id="ma">MUTE ALL</button></div><canvas id="gR"></canvas></div></div><div class="cards" id="cards"></div></section>
 <section id="ch" class="pg"><div class="row seg" id="chs"></div><div class="row seg" id="tbs"></div><div id="cb"></div></section>
@@ -64,36 +66,37 @@ nav button{flex:1;max-width:150px;background:#1c1428;border:1px solid var(--cd);
  <p class="u" id="genCountdown"></p>
 </div></section>
 <section id="set" class="pg">
-<div class="p"><div class="lb"><span>STANDBY</span><span class="u" id="fwv"></span></div>
- <p class="u" id="setInfo"></p>
- <p class="u">Kalau encoder/tombol tidak disentuh selama waktu ini, layar pindah ke tampilan standby. Putar atau klik encoder untuk membangunkan.</p>
- <div class="row"><span class="u">LAYAR NYALA</span><select id="sbT"></select></div>
- <div class="lb" style="margin-top:14px"><span>TAMPILAN STANDBY</span></div>
- <div class="row seg" id="sbM"></div>
- <div class="row"><button class="btn v" id="sbPrev">PREVIEW DI PERANGKAT</button></div></div>
-<div class="p" style="margin-top:12px"><div class="lb"><span>LOGO CUSTOM</span><span class="u">240 × 240 px</span></div>
- <p class="u">Pilih gambar, otomatis diubah ke 240×240 lalu dikirim lewat BLE dan disimpan permanen di perangkat. Satu logo dipakai untuk boot dan/atau standby, tinggal pilih yang mana di bawah.</p>
- <div class="row seg" id="lgFit"><button class="btn on" data-f="contain">UTUH</button><button class="btn" data-f="cover">ISI PENUH</button></div>
- <canvas id="lgPv" class="pv" width="240" height="240"></canvas>
- <div class="row"><label class="btn">PILIH GAMBAR<input type="file" id="lgFile" accept="image/*" hidden></label><button class="btn" id="lgUp">UPLOAD</button><button class="btn red" id="lgDel">HAPUS LOGO CUSTOM</button></div>
- <div class="bar" id="lgBar"><i></i></div><p class="u" id="lgTx"></p>
- <div class="lb" style="margin-top:14px"><span>PAKAI LOGO CUSTOM UNTUK</span></div>
- <div class="row seg" id="lgUse"><button class="btn" data-lu="boot">SAAT BOOT</button><button class="btn" data-lu="standby">SAAT STANDBY</button></div></div>
-<div class="p" style="margin-top:12px;border:1px solid var(--cd)"><div class="lb"><span>UPDATE FIRMWARE</span><span class="u" id="fwv2"></span></div>
- <p class="u">Update firmware sekarang lewat WiFi, bukan lewat halaman ini. Caranya:</p>
- <p class="u">1. Di perangkat: buka menu <b>GLOBAL &gt; UPDATE FIRMWARE</b>, klik encoder untuk menyalakan WiFi.<br>
- 2. Di HP: pindah sambungan WiFi ke <b>DLMS-UPDATE</b> (password <b>dlms1234</b>).<br>
- 3. Buka browser, ketik <b>192.168.4.1</b>, lalu upload file firmware .bin aplikasi (bukan merged/bootloader/partitions).<br>
- 4. Setelah selesai, perangkat restart otomatis dan WiFi mati sendiri — sambungkan lagi HP ke WiFi biasa.</p>
- <p class="u warn">Audio senyap selama WiFi menyala dan selama proses update. Layar perangkat menampilkan SSID, password, dan progress update.</p></div>
+ <p class="u" id="setMsg"></p><p class="u" id="setStat" style="color:var(--c)"></p>
+ <div id="setBody">
+  <div class="p"><div class="lb"><span>STATUS ALAT</span></div><div id="setChips" style="margin-top:10px"></div></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>NAMA BLUETOOTH</span><span class="u">1–20 karakter</span></div>
+   <div class="row"><input type="text" id="nmIn" maxlength="20" class="grow"><button class="btn" id="nmSv">SIMPAN</button></div>
+   <p class="u" id="nmHint"></p></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>PASSWORD (PIN)</span><span class="u">4–16 karakter</span></div>
+   <div class="row"><input type="password" id="pn1" maxlength="16" placeholder="PIN baru" class="grow" autocomplete="off"><input type="password" id="pn2" maxlength="16" placeholder="Ulangi PIN" class="grow" autocomplete="off"></div>
+   <div class="row"><button class="btn" id="pnSv">SIMPAN PIN</button><button class="btn red" id="pnDel">HAPUS PASSWORD</button></div>
+   <p class="u">Data Bluetooth tidak dienkripsi: PIN ini mencegah orang iseng mengontrol alat, bukan pengaman dari penyadapan radio yang disengaja. Lupa PIN? Tahan tombol encoder di alat sambil menyalakannya sampai layar menulis "BLE DIRESET".</p></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO LOADING &amp; STANDBY</span><span class="u">240×240</span></div>
+   <div class="row"><input type="file" id="lgFile" accept="image/*" class="grow"></div>
+   <div class="row"><select id="lgFit" class="grow"><option value="contain">Muat semua (ada bar hitam)</option><option value="cover">Penuhi kotak (dipotong)</option></select>
+    <select id="lgTgt" class="grow"><option value="3">Loading + Standby</option><option value="1">Loading saja</option><option value="2">Standby saja</option></select></div>
+   <canvas id="lgCv" class="pv" width="240" height="240"></canvas>
+   <div class="row"><button class="btn" id="lgSend" disabled>KIRIM LOGO</button><button class="btn red" id="lgDel">LOGO BAWAAN</button></div>
+   <progress id="lgProg" value="0" max="100" style="display:none"></progress>
+   <p class="u" id="lgHint">Gambar diubah otomatis jadi 240×240. Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.</p></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>RESTART ALAT</span></div><p class="u">Perlu dilakukan setelah ganti nama Bluetooth supaya nama baru dipakai.</p><button class="btn red" id="rsBtn">RESTART</button></div>
+ </div>
 </section>
 </main>
-<nav id="nav"><button data-p="dash" class="on">DASH</button><button data-p="ch">CHANNEL</button><button data-p="mx">MATRIX</button><button data-p="pre">PRESET</button><button data-p="gen">TEST SIG</button><button data-p="set">SETUP</button></nav>
+<div id="pinm" class="mo"><div class="p" style="width:min(340px,92vw)"><div class="lb"><span class="crown">ALAT DIPASSWORD</span></div>
+ <input type="password" id="pinv" maxlength="16" placeholder="Masukkan PIN" autocomplete="off" style="margin:14px 0">
+ <div class="row"><button class="btn on" id="pinok">MASUK</button><button class="btn" id="pinno">BATAL</button></div></div></div>
+<nav id="nav"><button data-p="dash" class="on">DASH</button><button data-p="ch">CHANNEL</button><button data-p="mx">MATRIX</button><button data-p="pre">PRESET</button><button data-p="gen">TEST SIG</button></nav>
 <div id="toast"></div>
 <script>
 'use strict';
 const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
-const U={svc:'4fafc201-1fb5-459e-8fcc-c5c9c331914b',ctl:'beb5483e-36e1-4688-b7f5-ea07361b26a8',st:'beb5483e-36e1-4688-b7f5-ea07361b26a9',rta:'beb5483e-36e1-4688-b7f5-ea07361b26aa',xe:'beb5483e-36e1-4688-b7f5-ea07361b26ab',xd:'beb5483e-36e1-4688-b7f5-ea07361b26ac'};
+const U={svc:'4fafc201-1fb5-459e-8fcc-c5c9c331914b',ctl:'beb5483e-36e1-4688-b7f5-ea07361b26a8',st:'beb5483e-36e1-4688-b7f5-ea07361b26a9',rta:'beb5483e-36e1-4688-b7f5-ea07361b26aa',set:'beb5483e-36e1-4688-b7f5-ea07361b26ab'};
 const FI=[20,22,25,28,32,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000];
 const BC=['#ff465a','#ff9628','#ffd640','#78ff5a','#00f0aa','#00c8ff','#5a82ff','#be64ff','#ff64c8'];
 const RN=['L','R','L+R'],CC=['#d8a941','#b46bff','#ffd640','#00f096'];
@@ -111,14 +114,12 @@ const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],hpf:[20,20,20,20],lpf:[20
  hpfMode:[0,0,0,0],lpfMode:[0,0,0,0],
  peq:[0,1,2,3].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3].map(()=>({t:0,a:10,r:100})),
  gateOn:[false,false,false,false],gateT:[-50,-50,-50,-50],gateA:[5,5,5,5],gateR:[150,150,150,150],
- genMode:0,genLevel:-20,
- sbSec:10,logoMode:0,logoCustom:false,fsOk:false,fw:0,bootLogo:0}; // sbSec/logoMode/logoCustom/fsOk/fw/bootLogo = STATUS v3 dari firmware
-let xe=null,xd=null,rtc=null,xbusy=false; // characteristic transfer (upload logo), notify meter, flag sedang transfer
+ genMode:0,genLevel:-20};
 let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false;const Q=new Map();
 const i16=v=>[v&255,(v>>8)&255];
-const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2000)};
+const toast=(m,ms)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||2000)};
 /* ---- BLE ---- */
-function send(k,a){if(demo||!ctl||xbusy)return;Q.set(k,a);if(!busy)pump()}
+function send(k,a){if(demo||!ctl)return;Q.set(k,a);if(!busy)pump()}
 async function pump(){busy=true;while(Q.size){const[k,a]=Q.entries().next().value;Q.delete(k);try{await ctl.writeValueWithoutResponse(new Uint8Array(a))}catch(e){try{await ctl.writeValue(new Uint8Array(a))}catch(_){}}await new Promise(r=>setTimeout(r,22))}busy=false}
 const C={route:c=>send('r'+c,[1,c,S.route[c]]),gain:c=>send('g'+c,[2,c,...i16(S.gain[c])]),
  mute:()=>send('m',[3,S.mute.reduce((m,v,i)=>m|(v<<(i+2)),0)]),hpf:c=>send('h'+c,[4,c,...i16(S.hpf[c])]),lpf:c=>send('l'+c,[5,c,...i16(S.lpf[c])]),
@@ -127,20 +128,21 @@ const C={route:c=>send('r'+c,[1,c,S.route[c]]),gain:c=>send('g'+c,[2,c,...i16(S.
  gate:c=>send('gt'+c,[12,c,S.gateOn[c]?1:0,...i16(Math.round(S.gateT[c]*10)),...i16(Math.round(S.gateA[c])),...i16(Math.round(S.gateR[c]))]),
  xtype:(c,sisi)=>send('xt'+c+sisi,[13,c,sisi,sisi==0?S.hpfMode[c]:S.lpfMode[c]]),
  gen:()=>send('gen',[14,S.genMode,...i16(Math.round(S.genLevel*10))])};
-// Pasang notifikasi & characteristic ke perangkat yg sudah dipilih (dipakai connect() & auto-reconnect setelah OTA)
-async function link(){
- const sv=await(await dev.gatt.connect()).getPrimaryService(U.svc);ctl=await sv.getCharacteristic(U.ctl);
- const st=await sv.getCharacteristic(U.st),rt=await sv.getCharacteristic(U.rta);
- st.addEventListener('characteristicvaluechanged',e=>parseSt(e.target.value));rt.addEventListener('characteristicvaluechanged',e=>{for(let i=0;i<6;i++)T[i]=e.target.value.getUint8(i)/255*60-60});
- await st.startNotifications();await rt.startNotifications();rtc=rt;
- // Fitur baru (opsional): kalau firmware lama belum punya characteristic ini, halaman SETUP otomatis nonaktif
- try{xe=await sv.getCharacteristic(U.xe);xd=await sv.getCharacteristic(U.xd);xe.addEventListener('characteristicvaluechanged',e=>xEvt(e.target.value));await xe.startNotifications()}catch(_){xe=xd=null}
- demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]))}
 async function connect(){
  if(!navigator.bluetooth){toast('Web Bluetooth tidak tersedia · pakai Chrome Android/desktop');return}
- try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});
-  dev.addEventListener('gattserverdisconnected',()=>{ctl=null;xe=xd=null;XW.splice(0).forEach(f=>f({s:0xFF}));setSt();if(page=='set')updSet()});
-  await link();toast('Terhubung')
+ try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});dev.addEventListener('gattserverdisconnected',()=>{ctl=null;setc=null;dinfo=null;setSt();renderSet()});
+  const sv=await(await dev.gatt.connect()).getPrimaryService(U.svc);const c0=await sv.getCharacteristic(U.ctl);
+  const st=await sv.getCharacteristic(U.st),rt=await sv.getCharacteristic(U.rta);
+  st.addEventListener('characteristicvaluechanged',e=>parseSt(e.target.value));rt.addEventListener('characteristicvaluechanged',e=>{for(let i=0;i<6;i++)T[i]=e.target.value.getUint8(i)/255*60-60});
+  // Pengaturan alat (firmware baru): kalau alat pakai PIN, login dulu sebelum boleh mengontrol.
+  // Firmware lama tidak punya characteristic ini -> dilewati saja, app jalan seperti biasa.
+  setc=null;dinfo=null;
+  try{setc=await sv.getCharacteristic(U.set)}catch(_){setc=null}
+  if(setc){setc.addEventListener('characteristicvaluechanged',kNotify);await setc.startNotifications();dinfo=await getInfo();
+   if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){dev.gatt.disconnect();toast('Login dibatalkan');return}
+   $('#nmIn').value=dinfo.name}
+  ctl=c0;
+  await st.startNotifications();await rt.startNotifications();demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));toast('Terhubung');renderSet()
  }catch(e){toast('Gagal: '+(e.message||e))}}
 function parseSt(v){
  if(v.byteLength<29)return;let p=0;
@@ -159,13 +161,7 @@ function parseSt(v){
    S.genMode=v.getUint8(p++);
    S.genLevel=v.getInt16(p,true)/10; p+=2;
  }
- if(v.byteLength>=71){ // v3: standby + logo + versi firmware
-   S.sbSec=v.getUint16(p,true);p+=2;S.logoMode=cl(v.getUint8(p++),0,2);
-   const fl=v.getUint8(p++);S.logoCustom=!!(fl&1);S.fsOk=!!(fl&2);
-   S.fw=v.getUint16(p,true);p+=2;
-   S.bootLogo=v.byteLength>=72?cl(v.getUint8(p++),0,1):0; // 0 bawaan, 1 custom saat boot
- }
- buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();if(page=='set')updSet();updateGenPill()}
+ buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();updateGenPill()}
 function setSt(){const e=$('#st');e.className='pill '+(ctl?'on':demo?'demo':'');e.textContent=ctl?'LINKED':demo?'DEMO':'OFFLINE';$('#cn').textContent=ctl?'DISCONNECT':'CONNECT'}
 $('#cn').onclick=()=>ctl?dev.gatt.disconnect():connect();
 $('#dm').onclick=()=>{demo=!demo;$('#dm').classList.toggle('on',demo);setSt()};
@@ -269,92 +265,72 @@ function buildMx(){$('#mxb').innerHTML=[0,1,2,3].map(i=>`<span style="color:${CC
 $('#mxb').onclick=e=>{const d=e.target.dataset;if(d.o!=null){S.route[d.o]=+d.k;C.route(+d.o);buildMx();buildCards()}};
 function buildPre(){$('#slots').innerHTML=[0,1,2,3,4].map(i=>`<div class="p"><div class="or crown" style="font-size:22px">${i+1}</div><div class="u">PRESET SLOT</div><div class="row"><button class="btn" data-ld="${i}">LOAD</button><button class="btn v" data-sv="${i}">SAVE</button></div></div>`).join('')}
 $('#slots').onclick=e=>{const d=e.target.dataset;if(d.ld!=null){if(confirm('Load preset '+(+d.ld+1)+'?')){send('x',[9,+d.ld]);setTimeout(()=>send('y',[0x0B]),400);toast('Preset '+(+d.ld+1)+' dipanggil')}}else if(d.sv!=null&&confirm('Timpa preset '+(+d.sv+1)+'?')){send('z',[0x0A,+d.sv]);toast('Preset '+(+d.sv+1)+' tersimpan')}};
-/* ---- SETUP: standby, logo custom, update firmware (OTA) via BLE ---- */
-const sleep=ms=>new Promise(r=>setTimeout(r,ms)),u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
-const X_ERR={225:'Gagal memulai (OTA: partition scheme tanpa OTA / firmware terlalu besar)',226:'Gagal menulis data di perangkat',227:'Ukuran data tidak sesuai / ada data hilang',228:'Penyimpanan perangkat belum siap (partition scheme tanpa SPIFFS)',229:'Firmware ditolak perangkat (verifikasi gagal)',230:'Perangkat sedang sibuk',255:'Koneksi BLE terputus'};
-/*XFER-START*/
-const XW=[];let xAck=0,xErr=null;
-function xEvt(v){const e={t:v.getUint8(0),s:v.getUint8(1),v:v.getUint32(2,true)};if(e.s==1)xAck=e.v;if(e.s>=0xE0)xErr=e;XW.splice(0).forEach(f=>f(e))}
-function xNext(ms=10000){return new Promise((ok,no)=>{let f;const t=setTimeout(()=>{const i=XW.indexOf(f);if(i>=0)XW.splice(i,1);no(new Error('Timeout menunggu respon perangkat'))},ms);
- f=e=>{clearTimeout(t);e.s>=0xE0?no(new Error(X_ERR[e.s]||'Error '+e.s)):ok(e)};XW.push(f)})}
-const xThrow=()=>{if(xErr)throw new Error(X_ERR[xErr.s]||'Error '+xErr.s)};
-// tulis ke CONTROL secara berurutan (tunggu antrean send() kosong dulu, supaya tidak bentrok "GATT operation in progress")
-async function cw(a){while(busy||Q.size)await sleep(15);await ctl.writeValue(new Uint8Array(a))}
-// Satu kali percobaan transfer. Flow-control: max 8192 byte belum di-ack (perangkat kirim ack tiap 4096 byte)
-async function xOnce(K,bytes,ck,onP){
- xErr=null;xAck=0;
- let p=xNext();await cw([K.b,...u32(bytes.length)]);await p;
- let sent=0;
- while(sent<bytes.length){
-  while(sent-xAck>=8192){xThrow();await xNext(15000)}
-  xThrow();
-  const part=bytes.subarray(sent,Math.min(sent+ck,bytes.length));
-  for(let n=0;;n++){try{await xd.writeValueWithoutResponse(part);break}catch(e){if(n>4)throw e;await sleep(30)}}
-  sent+=part.length;if(onP)onP(Math.min(xAck,bytes.length)/bytes.length,ck);
- }
- while(xAck<bytes.length){xThrow();await xNext(15000)}
- if(onP)onP(1,ck);
- p=xNext(30000);await cw([K.e]);return p}
-// Kirim logo dgn fallback ukuran chunk (kalau MTU tidak ternegosiasi, data besar terpotong -> ulangi dgn chunk lebih kecil)
-async function xfer(bytes,onP){
- const K={b:0x11,e:0x12,a:0x12}; // a = reset state di perangkat setelah gagal (LOGO_BEGIN/END, reuse END sbg reset)
- xbusy=true;try{await rtc.stopNotifications()}catch(_){}
- for(const ck of [200,100,20]){
-  try{await xOnce(K,bytes,ck,onP);return ck}
-  catch(e){
-   const fatal=!ctl||(xErr&&[0xE1,0xE4,0xE6,0xFF].includes(xErr.s));
-   if(!ctl)throw e;
-   try{await cw([K.a])}catch(_){}
-   if(fatal||ck==20)throw e;
-   await sleep(400)}}}
-/*XFER-END*/
-function needFw(){if(!ctl){toast('Hubungkan perangkat dulu');return false}if(!xe||!S.fw){toast('Firmware perangkat belum mendukung fitur ini');return false}return true}
-const SB_OPT=[[10,'10 detik'],[30,'30 detik'],[60,'1 menit'],[300,'5 menit'],[600,'10 menit'],[1800,'30 menit'],[3600,'1 jam'],[0,'Tanpa standby (layar selalu nyala)']];
-function updSet(){
- const o=SB_OPT.slice();if(!o.some(x=>x[0]==S.sbSec))o.push([S.sbSec,S.sbSec+' detik']);
- $('#sbT').innerHTML=o.map(x=>`<option value="${x[0]}" ${x[0]==S.sbSec?'selected':''}>${x[1]}</option>`).join('');
- $('#sbM').innerHTML=['LOGO BAWAAN','LOGO CUSTOM','LAYAR HITAM'].map((n,i)=>`<button class="btn ${i==S.logoMode?'on':''}" data-sm="${i}" ${i==1&&!S.logoCustom?'disabled':''}>${n}</button>`).join('');
- $$('#lgUse .btn').forEach(b=>{const on=b.dataset.lu=='boot'?S.bootLogo==1:S.logoMode==1;b.classList.toggle('on',on);b.disabled=!S.logoCustom});
- const v=S.fw?'FW v'+(S.fw/100).toFixed(2):(ctl?'FW lama':'');$('#fwv').textContent=v;$('#fwv2').textContent=v;
- $('#setInfo').innerHTML=!ctl?'<span class="warn">Hubungkan perangkat lewat tombol CONNECT dulu.</span>':!xe||!S.fw?'<span class="warn">Firmware di perangkat belum punya fitur ini. Flash firmware terbaru lewat USB sekali dulu.</span>':!S.fsOk?'<span class="warn">Penyimpanan logo belum aktif (partition scheme tanpa SPIFFS) — logo custom tidak bisa dipakai, pengaturan waktu tetap jalan.</span>':''}
-function sendSb(){if(needFw())send('sb',[0x10,...i16(S.sbSec),S.logoMode])}
-$('#sbT').onchange=e=>{S.sbSec=+e.target.value;sendSb()};
-$('#sbM').onclick=e=>{const i=e.target.dataset.sm;if(i==null||e.target.disabled)return;S.logoMode=+i;sendSb();updSet()};
-$('#sbPrev').onclick=()=>{if(needFw()){send('sp',[0x14]);toast('Standby ditampilkan di perangkat')}};
-// pakai/lepas logo custom utk boot & standby (dua saklar independen, masing2 kirim command sendiri)
-$('#lgUse').onclick=e=>{
- const lu=e.target.dataset.lu;if(!lu||e.target.disabled)return;if(!needFw())return;
- if(lu=='boot'){send('bl',[0x15,S.bootLogo==1?0:1])}
- else{S.logoMode=S.logoMode==1?0:1;sendSb()}
-};
-// gambar -> 240x240 RGB565 little-endian (115200 byte), latar transparan dijadikan hitam
-let lgBytes=null,lgFile=null,lgFit='contain';
-async function lgConv(){
- if(!lgFile)return;
- try{const bmp=await createImageBitmap(lgFile),cv=$('#lgPv'),x=cv.getContext('2d');
-  x.fillStyle='#000';x.fillRect(0,0,240,240);
-  const k=(lgFit=='cover'?Math.max:Math.min)(240/bmp.width,240/bmp.height),w=bmp.width*k,h=bmp.height*k;
-  x.drawImage(bmp,(240-w)/2,(240-h)/2,w,h);
-  const px=x.getImageData(0,0,240,240).data,o=new Uint8Array(115200);
-  for(let i=0,j=0;i<px.length;i+=4,j+=2){const c=((px[i]&0xF8)<<8)|((px[i+1]&0xFC)<<3)|(px[i+2]>>3);o[j]=c&255;o[j+1]=c>>8}
-  lgBytes=o;$('#lgTx').textContent='Siap diupload'
- }catch(e){lgBytes=null;toast('Gambar tidak bisa dibaca')}}
-$('#lgFile').onchange=e=>{lgFile=e.target.files[0]||null;lgConv()};
-$('#lgFit').onclick=e=>{const f=e.target.dataset.f;if(!f)return;lgFit=f;$$('#lgFit .btn').forEach(b=>b.classList.toggle('on',b.dataset.f==f));lgConv()};
-$('#lgUp').onclick=async()=>{
- if(!needFw()||xbusy)return;
- if(!S.fsOk){toast('Penyimpanan logo belum aktif di perangkat');return}
- if(!lgBytes){toast('Pilih gambar dulu');return}
- const b=$('#lgBar i'),t=$('#lgTx');b.style.width='0';t.textContent='Mengirim…';
- try{await xfer(lgBytes,(f,ck)=>{b.style.width=(f*100).toFixed(0)+'%';t.textContent='Mengirim '+(f*100).toFixed(0)+'% · chunk '+ck+'B'});
-  t.textContent='Selesai — logo tersimpan'}
- catch(e){t.textContent='Gagal: '+(e.message||e)}
- finally{xbusy=false;try{await rtc.startNotifications()}catch(_){}}};
-$('#lgDel').onclick=()=>{if(needFw()&&confirm('Hapus logo custom dari perangkat?'))send('ld',[0x13])};
+/* ---- PENGATURAN ALAT: nama BLE, PIN, logo (characteristic SETTINGS) ---- */
+const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
+const KE={1:'Belum login',2:'Data tidak valid',3:'Alat tidak punya penyimpanan logo (di Arduino IDE pilih Partition Scheme yang ada SPIFFS)',4:'Memori alat tidak cukup',5:'Urutan data kacau, coba lagi',6:'Data rusak saat dikirim, coba lagi',7:'Alat sibuk / terkunci 10 detik, coba lagi nanti',8:'PIN salah'};
+let setc=null,dinfo=null,dErr=0,limg=null,sb=false;const KW=new Map();
+const enc=s=>[...new TextEncoder().encode(s)],asciiOk=s=>!/[^\x20-\x7E]/.test(s);
+const CRCT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function kNotify(e){const dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength).slice(),cmd=v[0],s=v[1];
+ if(cmd===K.LD){if(s)dErr=s;return}
+ const w=KW.get(cmd);if(w){KW.delete(cmd);clearTimeout(w.t);w.r({s,d:v.slice(2)})}}
+const kRaw=b=>{const u=new Uint8Array(b);return setc.writeValueWithResponse?setc.writeValueWithResponse(u):setc.writeValue(u)};
+async function kCall(b,cmd,ms){const p=new Promise((r,j)=>{const t=setTimeout(()=>{KW.delete(cmd);j(new Error('Alat tidak merespons'))},ms||6000);KW.set(cmd,{r,t})});
+ try{await kRaw(b)}catch(e){const w=KW.get(cmd);if(w){clearTimeout(w.t);KW.delete(cmd)}p.catch(()=>{});throw e}return p}
+async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5]))}}
+function askPin(){return new Promise(res=>{const m=$('#pinm'),i=$('#pinv');i.value='';m.classList.add('on');setTimeout(()=>i.focus(),60);
+ const done=v=>{m.classList.remove('on');$('#pinok').onclick=$('#pinno').onclick=i.onkeydown=null;res(v)};
+ $('#pinok').onclick=()=>done(i.value);$('#pinno').onclick=()=>done(null);i.onkeydown=e=>{if(e.key==='Enter')done(i.value)}})}
+async function loginPin(){for(;;){const pin=await askPin();if(pin===null)return false;
+ const r=await kCall([K.AUTH,...enc(pin)],K.AUTH);
+ if(r.s===0){dinfo=await getInfo();return true}
+ toast(KE[r.s]||'Login gagal',2500);if(r.s===7)return false}}
+const sStat=t=>{$('#setStat').textContent=t||''};
+function renderSet(){const on=!!ctl&&!!setc&&!!dinfo;
+ $('#setMsg').textContent=on?'':(!ctl?'Hubungkan ke alat dulu (tombol CONNECT) untuk membuka pengaturan ini.':'Firmware alat belum mendukung pengaturan ini – upload firmware terbaru dulu.');
+ $('#setBody').style.display=on?'':'none';if(!on)return;const d=dinfo;
+ $('#setChips').innerHTML=[[d.pinSet?'PASSWORD AKTIF':'TANPA PASSWORD',d.pinSet],[d.fs?'PENYIMPANAN LOGO SIAP':'PENYIMPANAN LOGO TIDAK ADA',d.fs],
+  [d.lb?'LOGO LOADING: KUSTOM':'LOGO LOADING: BAWAAN',d.lb],[d.ls?'LOGO STANDBY: KUSTOM':'LOGO STANDBY: BAWAAN',d.ls]].map(([t,o])=>`<span class="chip ${o?'on':''}">${t}</span>`).join('');
+ $('#lgSend').disabled=!(d.fs&&limg);$('#lgDel').disabled=!d.fs;if(!d.fs)$('#lgHint').textContent=KE[3]}
+async function sRun(fn){if(sb)return;sb=true;const bs=$$('#set button');bs.forEach(b=>b.disabled=true);
+ try{await fn()}catch(e){sStat('✗ '+(e.message||e));toast('✗ '+(e.message||e),3000)}
+ finally{sb=false;bs.forEach(b=>b.disabled=false);renderSet()}}
+async function refreshInfo(){dinfo=await getInfo();$('#nmIn').value=dinfo.name}
+async function cmdOk(b,cmd,ms){const r=await kCall(b,cmd,ms);if(r.s!==0)throw new Error(KE[r.s]||('Kode error '+r.s))}
+$('#nmSv').onclick=()=>sRun(async()=>{const n=$('#nmIn').value.trim();if(n.length<1||n.length>20||!asciiOk(n))throw new Error('Nama harus 1–20 karakter huruf/angka/simbol biasa');
+ await cmdOk([K.NAME,...enc(n)],K.NAME);sStat('✓ Nama tersimpan. Tekan RESTART supaya nama baru dipakai.');$('#nmHint').textContent='Tersimpan. Restart alat, lalu hubungkan lagi dengan nama baru.'});
+$('#pnSv').onclick=()=>sRun(async()=>{const a=$('#pn1').value,b=$('#pn2').value;if(a!==b)throw new Error('PIN dan ulangannya tidak sama');
+ if(a.length<4||a.length>16||!asciiOk(a))throw new Error('PIN harus 4–16 karakter biasa');
+ await cmdOk([K.PIN,...enc(a)],K.PIN);$('#pn1').value=$('#pn2').value='';sStat('✓ Password disimpan. Koneksi berikutnya wajib PIN.');await refreshInfo()});
+$('#pnDel').onclick=()=>sRun(async()=>{await cmdOk([K.PIN],K.PIN);sStat('✓ Password dihapus.');await refreshInfo()});
+$('#rsBtn').onclick=()=>sRun(async()=>{if(!confirm('Restart alat sekarang? Suara akan terputus sesaat.'))return;await cmdOk([K.RESTART],K.RESTART);sStat('✓ Alat restart… hubungkan lagi setelah ±5 detik.')});
+function lgDraw(){if(!limg)return;const c=$('#lgCv'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,240,240);
+ const k=$('#lgFit').value==='cover'?Math.max(240/limg.width,240/limg.height):Math.min(240/limg.width,240/limg.height),w=limg.width*k,h=limg.height*k;
+ x.imageSmoothingQuality='high';x.drawImage(limg,(240-w)/2,(240-h)/2,w,h)}
+$('#lgFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();
+ im.onload=()=>{limg=im;lgDraw();renderSet();URL.revokeObjectURL(im.src)};im.onerror=()=>toast('Gambar tidak bisa dibaca');im.src=URL.createObjectURL(f)};
+$('#lgFit').onchange=lgDraw;
+function rgb565le(rgba){const o=new Uint8Array(rgba.length/2);for(let i=0,j=0;i<rgba.length;i+=4){const v=((rgba[i]&0xF8)<<8)|((rgba[i+1]&0xFC)<<3)|(rgba[i+2]>>3);o[j++]=v&255;o[j++]=v>>8}return o}
+$('#lgSend').onclick=()=>sRun(async()=>{if(!limg)return;lgDraw();
+ const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,240,240).data),mask=+$('#lgTgt').value;
+ await cmdOk([K.LB,mask],K.LB);
+ const sizes=[200,100,40,17],pg=$('#lgProg');let si=0,off=0,seq=0;dErr=0;pg.style.display='';pg.value=0;
+ try{
+  while(off<data.length){const n=Math.min(sizes[si],data.length-off),pk=new Uint8Array(3+n);pk[0]=K.LD;pk[1]=seq&255;pk[2]=seq>>8;pk.set(data.subarray(off,off+n),3);
+   try{await kRaw(pk)}catch(e){if(seq===0&&si<sizes.length-1){si++;continue}throw e}   // MTU kecil -> pakai paket lebih kecil
+   if(dErr)throw new Error(KE[dErr]||('Kode error '+dErr));
+   off+=n;seq++;if((seq&7)===0)pg.value=Math.round(off/data.length*100)}
+  pg.value=100;sStat('Data terkirim, alat sedang menyimpan…');
+  const c=crc32(data);await cmdOk([K.LE,c&255,(c>>>8)&255,(c>>>16)&255,(c>>>24)&255],K.LE,40000);
+ }finally{pg.style.display='none'}
+ sStat('✓ Logo tersimpan. Tampil saat boot / standby berikutnya.');await refreshInfo()});
+$('#lgDel').onclick=()=>sRun(async()=>{await cmdOk([K.LR,+$('#lgTgt').value],K.LR);sStat('✓ Logo kustom dihapus, kembali ke logo bawaan.');await refreshInfo()});
+$('#gs').onclick=()=>go('set');
 /* ---- nav ---- */
-function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')updSet()}
+function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));$('#gs').classList.toggle('on',p=='set');if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')renderSet()}
 $('#nav').onclick=e=>{if(e.target.dataset.p)go(e.target.dataset.p)};
 function buildAll(){buildCards();buildMx();if(page=='ch')buildCh()}
-buildAll();buildPre();buildGen();setSt();if(!navigator.bluetooth){demo=true;$('#dm').classList.add('on');setSt()}loop();
+buildAll();buildPre();buildGen();setSt();if(!navigator.bluetooth){demo=true;$('#dm').classList.add('on');setSt()}loop();renderSet();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
