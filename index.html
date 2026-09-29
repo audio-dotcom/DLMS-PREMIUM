@@ -72,16 +72,20 @@ nav button{flex:1;max-width:150px;background:#1c1428;border:1px solid var(--cd);
  <div class="row seg" id="sbM"></div>
  <div class="row"><button class="btn v" id="sbPrev">PREVIEW DI PERANGKAT</button></div></div>
 <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO CUSTOM</span><span class="u">240 × 240 px</span></div>
- <p class="u">Pilih gambar, otomatis diubah ke 240×240 lalu dikirim lewat BLE dan disimpan permanen di perangkat. Logo boot tetap bawaan.</p>
+ <p class="u">Pilih gambar, otomatis diubah ke 240×240 lalu dikirim lewat BLE dan disimpan permanen di perangkat. Satu logo dipakai untuk boot dan/atau standby, tinggal pilih yang mana di bawah.</p>
  <div class="row seg" id="lgFit"><button class="btn on" data-f="contain">UTUH</button><button class="btn" data-f="cover">ISI PENUH</button></div>
  <canvas id="lgPv" class="pv" width="240" height="240"></canvas>
  <div class="row"><label class="btn">PILIH GAMBAR<input type="file" id="lgFile" accept="image/*" hidden></label><button class="btn" id="lgUp">UPLOAD</button><button class="btn red" id="lgDel">HAPUS LOGO CUSTOM</button></div>
- <div class="bar" id="lgBar"><i></i></div><p class="u" id="lgTx"></p></div>
+ <div class="bar" id="lgBar"><i></i></div><p class="u" id="lgTx"></p>
+ <div class="lb" style="margin-top:14px"><span>PAKAI LOGO CUSTOM UNTUK</span></div>
+ <div class="row seg" id="lgUse"><button class="btn" data-lu="boot">SAAT BOOT</button><button class="btn" data-lu="standby">SAAT STANDBY</button></div></div>
 <div class="p" style="margin-top:12px;border:1px solid var(--cd)"><div class="lb"><span>UPDATE FIRMWARE</span><span class="u" id="fwv2"></span></div>
- <p class="u warn">Pilih file firmware APLIKASI saja (.bin hasil compile), bukan file merged / bootloader / partitions. Audio dimatikan selama update (±1–3 menit). Jangan tutup halaman dan jangan matikan daya.</p>
- <div class="row"><label class="btn v">PILIH FILE .BIN<input type="file" id="otaFile" accept=".bin" hidden></label><span class="u" id="otaName"></span></div>
- <div class="row"><button class="btn red" id="otaUp">MULAI UPDATE</button></div>
- <div class="bar" id="otaBar"><i></i></div><p class="u" id="otaTx"></p></div>
+ <p class="u">Update firmware sekarang lewat WiFi, bukan lewat halaman ini. Caranya:</p>
+ <p class="u">1. Di perangkat: buka menu <b>GLOBAL &gt; UPDATE FIRMWARE</b>, klik encoder untuk menyalakan WiFi.<br>
+ 2. Di HP: pindah sambungan WiFi ke <b>DLMS-UPDATE</b> (password <b>dlms1234</b>).<br>
+ 3. Buka browser, ketik <b>192.168.4.1</b>, lalu upload file firmware .bin aplikasi (bukan merged/bootloader/partitions).<br>
+ 4. Setelah selesai, perangkat restart otomatis dan WiFi mati sendiri — sambungkan lagi HP ke WiFi biasa.</p>
+ <p class="u warn">Audio senyap selama WiFi menyala dan selama proses update. Layar perangkat menampilkan SSID, password, dan progress update.</p></div>
 </section>
 </main>
 <nav id="nav"><button data-p="dash" class="on">DASH</button><button data-p="ch">CHANNEL</button><button data-p="mx">MATRIX</button><button data-p="pre">PRESET</button><button data-p="gen">TEST SIG</button><button data-p="set">SETUP</button></nav>
@@ -108,8 +112,8 @@ const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],hpf:[20,20,20,20],lpf:[20
  peq:[0,1,2,3].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3].map(()=>({t:0,a:10,r:100})),
  gateOn:[false,false,false,false],gateT:[-50,-50,-50,-50],gateA:[5,5,5,5],gateR:[150,150,150,150],
  genMode:0,genLevel:-20,
- sbSec:10,logoMode:0,logoCustom:false,fsOk:false,fw:0}; // sbSec/logoMode/logoCustom/fsOk/fw = STATUS v3 dari firmware
-let xe=null,xd=null,rtc=null,xbusy=false; // characteristic transfer (logo/OTA), notify meter, flag sedang transfer
+ sbSec:10,logoMode:0,logoCustom:false,fsOk:false,fw:0,bootLogo:0}; // sbSec/logoMode/logoCustom/fsOk/fw/bootLogo = STATUS v3 dari firmware
+let xe=null,xd=null,rtc=null,xbusy=false; // characteristic transfer (upload logo), notify meter, flag sedang transfer
 let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false;const Q=new Map();
 const i16=v=>[v&255,(v>>8)&255];
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2000)};
@@ -159,6 +163,7 @@ function parseSt(v){
    S.sbSec=v.getUint16(p,true);p+=2;S.logoMode=cl(v.getUint8(p++),0,2);
    const fl=v.getUint8(p++);S.logoCustom=!!(fl&1);S.fsOk=!!(fl&2);
    S.fw=v.getUint16(p,true);p+=2;
+   S.bootLogo=v.byteLength>=72?cl(v.getUint8(p++),0,1):0; // 0 bawaan, 1 custom saat boot
  }
  buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();if(page=='set')updSet();updateGenPill()}
 function setSt(){const e=$('#st');e.className='pill '+(ctl?'on':demo?'demo':'');e.textContent=ctl?'LINKED':demo?'DEMO':'OFFLINE';$('#cn').textContent=ctl?'DISCONNECT':'CONNECT'}
@@ -290,9 +295,9 @@ async function xOnce(K,bytes,ck,onP){
  while(xAck<bytes.length){xThrow();await xNext(15000)}
  if(onP)onP(1,ck);
  p=xNext(30000);await cw([K.e]);return p}
-// Kirim dgn fallback ukuran chunk (kalau MTU tidak ternegosiasi, data besar terpotong -> ulangi dgn chunk lebih kecil)
-async function xfer(kind,bytes,onP){
- const K=kind=='ota'?{b:0x20,e:0x21,a:0x22}:{b:0x11,e:0x12,a:0x12}; // a = reset state di perangkat setelah gagal
+// Kirim logo dgn fallback ukuran chunk (kalau MTU tidak ternegosiasi, data besar terpotong -> ulangi dgn chunk lebih kecil)
+async function xfer(bytes,onP){
+ const K={b:0x11,e:0x12,a:0x12}; // a = reset state di perangkat setelah gagal (LOGO_BEGIN/END, reuse END sbg reset)
  xbusy=true;try{await rtc.stopNotifications()}catch(_){}
  for(const ck of [200,100,20]){
   try{await xOnce(K,bytes,ck,onP);return ck}
@@ -309,12 +314,19 @@ function updSet(){
  const o=SB_OPT.slice();if(!o.some(x=>x[0]==S.sbSec))o.push([S.sbSec,S.sbSec+' detik']);
  $('#sbT').innerHTML=o.map(x=>`<option value="${x[0]}" ${x[0]==S.sbSec?'selected':''}>${x[1]}</option>`).join('');
  $('#sbM').innerHTML=['LOGO BAWAAN','LOGO CUSTOM','LAYAR HITAM'].map((n,i)=>`<button class="btn ${i==S.logoMode?'on':''}" data-sm="${i}" ${i==1&&!S.logoCustom?'disabled':''}>${n}</button>`).join('');
+ $$('#lgUse .btn').forEach(b=>{const on=b.dataset.lu=='boot'?S.bootLogo==1:S.logoMode==1;b.classList.toggle('on',on);b.disabled=!S.logoCustom});
  const v=S.fw?'FW v'+(S.fw/100).toFixed(2):(ctl?'FW lama':'');$('#fwv').textContent=v;$('#fwv2').textContent=v;
  $('#setInfo').innerHTML=!ctl?'<span class="warn">Hubungkan perangkat lewat tombol CONNECT dulu.</span>':!xe||!S.fw?'<span class="warn">Firmware di perangkat belum punya fitur ini. Flash firmware terbaru lewat USB sekali dulu.</span>':!S.fsOk?'<span class="warn">Penyimpanan logo belum aktif (partition scheme tanpa SPIFFS) — logo custom tidak bisa dipakai, pengaturan waktu tetap jalan.</span>':''}
 function sendSb(){if(needFw())send('sb',[0x10,...i16(S.sbSec),S.logoMode])}
 $('#sbT').onchange=e=>{S.sbSec=+e.target.value;sendSb()};
 $('#sbM').onclick=e=>{const i=e.target.dataset.sm;if(i==null||e.target.disabled)return;S.logoMode=+i;sendSb();updSet()};
 $('#sbPrev').onclick=()=>{if(needFw()){send('sp',[0x14]);toast('Standby ditampilkan di perangkat')}};
+// pakai/lepas logo custom utk boot & standby (dua saklar independen, masing2 kirim command sendiri)
+$('#lgUse').onclick=e=>{
+ const lu=e.target.dataset.lu;if(!lu||e.target.disabled)return;if(!needFw())return;
+ if(lu=='boot'){send('bl',[0x15,S.bootLogo==1?0:1])}
+ else{S.logoMode=S.logoMode==1?0:1;sendSb()}
+};
 // gambar -> 240x240 RGB565 little-endian (115200 byte), latar transparan dijadikan hitam
 let lgBytes=null,lgFile=null,lgFit='contain';
 async function lgConv(){
@@ -329,28 +341,16 @@ async function lgConv(){
  }catch(e){lgBytes=null;toast('Gambar tidak bisa dibaca')}}
 $('#lgFile').onchange=e=>{lgFile=e.target.files[0]||null;lgConv()};
 $('#lgFit').onclick=e=>{const f=e.target.dataset.f;if(!f)return;lgFit=f;$$('#lgFit .btn').forEach(b=>b.classList.toggle('on',b.dataset.f==f));lgConv()};
-async function runX(kind,bytes,bar,tx){
- const b=$(bar+' i'),t=$(tx);b.style.width='0';t.textContent='Mengirim…';
- try{await xfer(kind,bytes,(f,ck)=>{b.style.width=(f*100).toFixed(0)+'%';t.textContent='Mengirim '+(f*100).toFixed(0)+'% · chunk '+ck+'B'});
-  t.textContent=kind=='ota'?'Selesai. Perangkat restart, menyambung ulang…':'Selesai — logo tersimpan dan dipakai';return true}
- catch(e){t.textContent='Gagal: '+(e.message||e);return false}
- finally{xbusy=false;try{await rtc.startNotifications()}catch(_){}}}
 $('#lgUp').onclick=async()=>{
  if(!needFw()||xbusy)return;
  if(!S.fsOk){toast('Penyimpanan logo belum aktif di perangkat');return}
  if(!lgBytes){toast('Pilih gambar dulu');return}
- await runX('logo',lgBytes,'#lgBar','#lgTx')};
+ const b=$('#lgBar i'),t=$('#lgTx');b.style.width='0';t.textContent='Mengirim…';
+ try{await xfer(lgBytes,(f,ck)=>{b.style.width=(f*100).toFixed(0)+'%';t.textContent='Mengirim '+(f*100).toFixed(0)+'% · chunk '+ck+'B'});
+  t.textContent='Selesai — logo tersimpan'}
+ catch(e){t.textContent='Gagal: '+(e.message||e)}
+ finally{xbusy=false;try{await rtc.startNotifications()}catch(_){}}};
 $('#lgDel').onclick=()=>{if(needFw()&&confirm('Hapus logo custom dari perangkat?'))send('ld',[0x13])};
-$('#otaFile').onchange=e=>{const f=e.target.files[0];$('#otaName').textContent=f?f.name+' · '+(f.size/1024).toFixed(0)+' KB':''};
-function reconnect(n=0){setTimeout(async()=>{try{await link();toast('Tersambung ulang')}catch(e){if(n<4)reconnect(n+1);else toast('Sambungkan ulang manual (tekan CONNECT)')}},n?3000:5000)}
-$('#otaUp').onclick=async()=>{
- if(!needFw()||xbusy)return;
- const f=$('#otaFile').files[0];if(!f){toast('Pilih file .bin dulu');return}
- if(/merged|bootloader|partition/i.test(f.name)){alert('Itu bukan file firmware aplikasi (nama file mengandung merged/bootloader/partitions). Pilih file .bin aplikasi saja.');return}
- const b=new Uint8Array(await f.arrayBuffer());
- if(b.length<1024||b[0]!==0xE9||(b[12]|(b[13]<<8))!==9){alert('File ini bukan firmware ESP32-S3 yang valid.');return}
- if(!confirm('Update firmware dengan '+f.name+' ('+(b.length/1024).toFixed(0)+' KB)?\n\nAudio dimatikan selama update (±1–3 menit). Jangan tutup halaman dan jangan matikan daya perangkat.'))return;
- if(await runX('ota',b,'#otaBar','#otaTx'))reconnect()};
 /* ---- nav ---- */
 function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')updSet()}
 $('#nav').onclick=e=>{if(e.target.dataset.p)go(e.target.dataset.p)};
