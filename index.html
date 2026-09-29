@@ -268,12 +268,11 @@ $('#slots').onclick=e=>{const d=e.target.dataset;if(d.ld!=null){if(confirm('Load
 /* ---- PENGATURAN ALAT: nama BLE, PIN, logo (characteristic SETTINGS) ---- */
 const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
 const KE={1:'Belum login',2:'Data tidak valid',3:'Alat tidak punya penyimpanan logo (di Arduino IDE pilih Partition Scheme yang ada SPIFFS)',4:'Memori alat tidak cukup',5:'Urutan data kacau, coba lagi',6:'Data rusak saat dikirim, coba lagi',7:'Alat sibuk / terkunci 10 detik, coba lagi nanti',8:'PIN salah'};
-let setc=null,dinfo=null,dErr=0,limg=null,sb=false;const KW=new Map();
+let setc=null,dinfo=null,limg=null,sb=false;const KW=new Map();
 const enc=s=>[...new TextEncoder().encode(s)],asciiOk=s=>!/[^\x20-\x7E]/.test(s);
 const CRCT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0}return t})();
 const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
 function kNotify(e){const dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength).slice(),cmd=v[0],s=v[1];
- if(cmd===K.LD){if(s)dErr=s;return}
  const w=KW.get(cmd);if(w){KW.delete(cmd);clearTimeout(w.t);w.r({s,d:v.slice(2)})}}
 const kRaw=b=>{const u=new Uint8Array(b);return setc.writeValueWithResponse?setc.writeValueWithResponse(u):setc.writeValue(u)};
 async function kCall(b,cmd,ms){const p=new Promise((r,j)=>{const t=setTimeout(()=>{KW.delete(cmd);j(new Error('Alat tidak merespons'))},ms||6000);KW.set(cmd,{r,t})});
@@ -315,12 +314,16 @@ function rgb565le(rgba){const o=new Uint8Array(rgba.length/2);for(let i=0,j=0;i<
 $('#lgSend').onclick=()=>sRun(async()=>{if(!limg)return;lgDraw();
  const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,240,240).data),mask=+$('#lgTgt').value;
  await cmdOk([K.LB,mask],K.LB);
- const sizes=[200,100,40,17],pg=$('#lgProg');let si=0,off=0,seq=0;dErr=0;pg.style.display='';pg.value=0;
+ // Tiap potongan WAJIB dikonfirmasi alat sebelum lanjut ke potongan berikutnya -> lebih lambat drpd
+ // versi lama, tapi gak akan lagi gagal diam-diam di tengah jalan (Bluetooth ponsel suka buang paket).
+ const sizes=[180,90,40,17],pg=$('#lgProg');let si=0,off=0,seq=0;pg.style.display='';pg.value=0;
+ sStat('Mengirim data ke alat, jangan tutup halaman ini…');
  try{
   while(off<data.length){const n=Math.min(sizes[si],data.length-off),pk=new Uint8Array(3+n);pk[0]=K.LD;pk[1]=seq&255;pk[2]=seq>>8;pk.set(data.subarray(off,off+n),3);
-   try{await kRaw(pk)}catch(e){if(seq===0&&si<sizes.length-1){si++;continue}throw e}   // MTU kecil -> pakai paket lebih kecil
-   if(dErr)throw new Error(KE[dErr]||('Kode error '+dErr));
-   off+=n;seq++;if((seq&7)===0)pg.value=Math.round(off/data.length*100)}
+   let r;
+   try{r=await kCall(pk,K.LD,4000)}catch(e){if(seq===0&&si<sizes.length-1){si++;continue}throw e}   // gagal di potongan pertama -> mungkin MTU kecil, coba lebih kecil
+   if(r.s!==0)throw new Error(KE[r.s]||('Kode error '+r.s));
+   off+=n;seq++;pg.value=Math.round(off/data.length*100)}
   pg.value=100;sStat('Data terkirim, alat sedang menyimpan…');
   const c=crc32(data);await cmdOk([K.LE,c&255,(c>>>8)&255,(c>>>16)&255,(c>>>24)&255],K.LE,40000);
  }finally{pg.style.display='none'}
