@@ -48,7 +48,7 @@ input[type=file]{color:var(--d);font:600 13px Rajdhani;max-width:100%}.row>input
 progress{width:100%;height:10px;accent-color:var(--c)}
 .mo{position:fixed;inset:0;z-index:20;background:#0a0512e6;display:none;align-items:center;justify-content:center;padding:16px}.mo.on{display:flex}
 .chip{display:inline-block;padding:3px 10px;margin:0 6px 6px 0;border:1px solid var(--cd);border-radius:20px;font-size:12px;color:var(--d)}.chip.on{color:var(--g);border-color:var(--g)}
-#gs{padding:8px 11px}.pv{width:180px;height:180px;border:1px solid var(--cd);background:#000;margin:10px 0}
+#gs{padding:8px 11px}.pv{width:auto;max-width:100%;height:auto;image-rendering:auto;border:1px solid var(--cd);background:#000;margin:10px 0}
 </style></head><body>
 <header><h1>DLMS <span class="crown">PREMIUM</span><small>YSN AUDIO · X-OVER · GATE · 5-PRESET</small></h1><span id="genPill" class="pill" style="display:none;color:var(--r);border-color:var(--r)">● TEST SIGNAL</span><span id="st" class="pill">OFFLINE</span><button class="btn" id="cn">CONNECT</button><button class="btn v" id="dm">DEMO</button><button class="btn" id="gs" title="Pengaturan alat">⚙</button></header>
 <main>
@@ -76,7 +76,7 @@ progress{width:100%;height:10px;accent-color:var(--c)}
    <div class="row"><input type="password" id="pn1" maxlength="16" placeholder="PIN baru" class="grow" autocomplete="off"><input type="password" id="pn2" maxlength="16" placeholder="Ulangi PIN" class="grow" autocomplete="off"></div>
    <div class="row"><button class="btn" id="pnSv">SIMPAN PIN</button><button class="btn red" id="pnDel">HAPUS PASSWORD</button></div>
    <p class="u">Data Bluetooth tidak dienkripsi: PIN ini mencegah orang iseng mengontrol alat, bukan pengaman dari penyadapan radio yang disengaja. Lupa PIN? Tahan tombol encoder di alat sambil menyalakannya sampai layar menulis "BLE DIRESET".</p></div>
-  <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO LOADING &amp; STANDBY</span><span class="u">190×190</span></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO LOADING &amp; STANDBY</span><span class="u" id="lgDim">190×190</span></div>
    <div class="row"><input type="file" id="lgFile" accept="image/*" class="grow"></div>
    <div class="row"><select id="lgFit" class="grow"><option value="contain">Muat semua (ada bar hitam)</option><option value="cover">Penuhi kotak (dipotong)</option></select>
     <select id="lgTgt" class="grow"><option value="3">Loading + Standby</option><option value="1">Loading saja</option><option value="2">Standby saja</option></select></div>
@@ -272,7 +272,7 @@ $('#slots').onclick=e=>{const d=e.target.dataset;if(d.ld!=null){if(confirm('Load
 /* ---- PENGATURAN ALAT: nama BLE, PIN, logo (characteristic SETTINGS) ---- */
 const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,WIFI:0x15,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
 const KE={1:'Belum login',2:'Data tidak valid',3:'Alat tidak punya penyimpanan logo (di Arduino IDE pilih Partition Scheme yang ada SPIFFS)',4:'Memori alat tidak cukup',5:'Urutan data kacau, coba lagi',6:'Data rusak saat dikirim, coba lagi',7:'Alat sibuk / terkunci 10 detik, coba lagi nanti',8:'PIN salah'};
-let setc=null,dinfo=null,limg=null,sb=false;const KW=new Map();
+let setc=null,dinfo=null,limg=null,sb=false,LW=190,LH=190;const KW=new Map();
 const enc=s=>[...new TextEncoder().encode(s)],asciiOk=s=>!/[^\x20-\x7E]/.test(s);
 const CRCT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0}return t})();
 const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
@@ -281,7 +281,7 @@ function kNotify(e){const dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOf
 const kRaw=b=>{const u=new Uint8Array(b);return setc.writeValueWithResponse?setc.writeValueWithResponse(u):setc.writeValue(u)};
 async function kCall(b,cmd,ms){const p=new Promise((r,j)=>{const t=setTimeout(()=>{KW.delete(cmd);j(new Error('Alat tidak merespons'))},ms||6000);KW.set(cmd,{r,t})});
  try{await kRaw(b)}catch(e){const w=KW.get(cmd);if(w){clearTimeout(w.t);KW.delete(cmd)}p.catch(()=>{});throw e}return p}
-async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5]))}}
+async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;const o=6+d[5];return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5])),lw:d.length>=o+4?(d[o]|d[o+1]<<8):190,lh:d.length>=o+4?(d[o+2]|d[o+3]<<8):190}}
 function askPin(){return new Promise(res=>{const m=$('#pinm'),i=$('#pinv');i.value='';m.classList.add('on');setTimeout(()=>i.focus(),60);
  const done=v=>{m.classList.remove('on');$('#pinok').onclick=$('#pinno').onclick=i.onkeydown=null;res(v)};
  $('#pinok').onclick=()=>done(i.value);$('#pinno').onclick=()=>done(null);i.onkeydown=e=>{if(e.key==='Enter')done(i.value)}})}
@@ -295,7 +295,10 @@ function renderSet(){const on=!!ctl&&!!setc&&!!dinfo;
  $('#setBody').style.display=on?'':'none';if(!on)return;const d=dinfo;
  $('#setChips').innerHTML=[[d.pinSet?'PASSWORD AKTIF':'TANPA PASSWORD',d.pinSet],[d.fs?'PENYIMPANAN LOGO SIAP':'PENYIMPANAN LOGO TIDAK ADA',d.fs],
   [d.lb?'LOGO LOADING: KUSTOM':'LOGO LOADING: BAWAAN',d.lb],[d.ls?'LOGO STANDBY: KUSTOM':'LOGO STANDBY: BAWAAN',d.ls]].map(([t,o])=>`<span class="chip ${o?'on':''}">${t}</span>`).join('');
- $('#lgSend').disabled=!(d.fs&&limg);$('#lgDel').disabled=!d.fs;if(!d.fs)$('#lgHint').textContent=KE[3]}
+ if(d.lw>0&&d.lh>0&&(d.lw!==LW||d.lh!==LH)){LW=d.lw;LH=d.lh;const c=$('#lgCv');c.width=LW;c.height=LH;lgDraw()}
+ $('#lgDim').textContent=LW+'×'+LH;
+ $('#lgSend').disabled=!(d.fs&&limg);$('#lgDel').disabled=!d.fs;
+ $('#lgHint').textContent=d.fs?('Gambar diubah otomatis jadi '+LW+'×'+LH+' (ukuran logo di alat; tampil 1:1 kalau sama dengan layar, kalau lebih besar diperkecil otomatis). Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.'):KE[3]}
 async function sRun(fn){if(sb)return;sb=true;const bs=$$('#set button');bs.forEach(b=>b.disabled=true);
  try{await fn()}catch(e){sStat('✗ '+(e.message||e));toast('✗ '+(e.message||e),3000)}
  finally{sb=false;bs.forEach(b=>b.disabled=false);renderSet()}}
@@ -308,15 +311,16 @@ $('#pnSv').onclick=()=>sRun(async()=>{const a=$('#pn1').value,b=$('#pn2').value;
  await cmdOk([K.PIN,...enc(a)],K.PIN);$('#pn1').value=$('#pn2').value='';sStat('✓ Password disimpan. Koneksi berikutnya wajib PIN.');await refreshInfo()});
 $('#pnDel').onclick=()=>sRun(async()=>{await cmdOk([K.PIN],K.PIN);sStat('✓ Password dihapus.');await refreshInfo()});
 $('#rsBtn').onclick=()=>sRun(async()=>{if(!confirm('Restart alat sekarang? Suara akan terputus sesaat.'))return;await cmdOk([K.RESTART],K.RESTART);sStat('✓ Alat restart… hubungkan lagi setelah ±5 detik.')});
-function lgDraw(){if(!limg)return;const c=$('#lgCv'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,190,190);
- const k=$('#lgFit').value==='cover'?Math.max(190/limg.width,190/limg.height):Math.min(190/limg.width,190/limg.height),w=limg.width*k,h=limg.height*k;
- x.imageSmoothingQuality='high';x.drawImage(limg,(190-w)/2,(190-h)/2,w,h)}
+function halve(a,tw,th){let c=a,cw=a.width,ch=a.height;while(cw/2>=tw&&ch/2>=th){const t=document.createElement('canvas');t.width=cw=Math.floor(cw/2);t.height=ch=Math.floor(ch/2);const x=t.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(c,0,0,cw,ch);c=t}return c}
+function lgDraw(){if(!limg)return;const c=$('#lgCv'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,LW,LH);
+ const k=$('#lgFit').value==='cover'?Math.max(LW/limg.width,LH/limg.height):Math.min(LW/limg.width,LH/limg.height),w=limg.width*k,h=limg.height*k;
+ x.imageSmoothingQuality='high';x.drawImage(halve(limg,w,h),(LW-w)/2,(LH-h)/2,w,h)}
 $('#lgFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();
  im.onload=()=>{limg=im;lgDraw();renderSet();URL.revokeObjectURL(im.src)};im.onerror=()=>toast('Gambar tidak bisa dibaca');im.src=URL.createObjectURL(f)};
 $('#lgFit').onchange=lgDraw;
 function rgb565le(rgba){const o=new Uint8Array(rgba.length/2);for(let i=0,j=0;i<rgba.length;i+=4){const v=((rgba[i]&0xF8)<<8)|((rgba[i+1]&0xFC)<<3)|(rgba[i+2]>>3);o[j++]=v&255;o[j++]=v>>8}return o}
 $('#lgSend').onclick=()=>sRun(async()=>{if(!limg)return;lgDraw();
- const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,190,190).data),mask=+$('#lgTgt').value;
+ const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,LW,LH).data),mask=+$('#lgTgt').value;
  await cmdOk([K.LB,mask],K.LB);
  // Tiap potongan WAJIB dikonfirmasi alat sebelum lanjut ke potongan berikutnya -> lebih lambat drpd
  // versi lama, tapi gak akan lagi gagal diam-diam di tengah jalan (Bluetooth ponsel suka buang paket).
