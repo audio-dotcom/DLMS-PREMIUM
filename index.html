@@ -76,14 +76,18 @@ progress{width:100%;height:10px;accent-color:var(--c)}
    <div class="row"><input type="password" id="pn1" maxlength="16" placeholder="PIN baru" class="grow" autocomplete="off"><input type="password" id="pn2" maxlength="16" placeholder="Ulangi PIN" class="grow" autocomplete="off"></div>
    <div class="row"><button class="btn" id="pnSv">SIMPAN PIN</button><button class="btn red" id="pnDel">HAPUS PASSWORD</button></div>
    <p class="u">Data Bluetooth tidak dienkripsi: PIN ini mencegah orang iseng mengontrol alat, bukan pengaman dari penyadapan radio yang disengaja. Lupa PIN? Tahan tombol encoder di alat sambil menyalakannya sampai layar menulis "BLE DIRESET".</p></div>
-  <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO LOADING &amp; STANDBY</span><span class="u">240×240</span></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>LOGO LOADING &amp; STANDBY</span><span class="u">190×190</span></div>
    <div class="row"><input type="file" id="lgFile" accept="image/*" class="grow"></div>
    <div class="row"><select id="lgFit" class="grow"><option value="contain">Muat semua (ada bar hitam)</option><option value="cover">Penuhi kotak (dipotong)</option></select>
     <select id="lgTgt" class="grow"><option value="3">Loading + Standby</option><option value="1">Loading saja</option><option value="2">Standby saja</option></select></div>
-   <canvas id="lgCv" class="pv" width="240" height="240"></canvas>
+   <canvas id="lgCv" class="pv" width="190" height="190"></canvas>
    <div class="row"><button class="btn" id="lgSend" disabled>KIRIM LOGO</button><button class="btn red" id="lgDel">LOGO BAWAAN</button></div>
    <progress id="lgProg" value="0" max="100" style="display:none"></progress>
-   <p class="u" id="lgHint">Gambar diubah otomatis jadi 240×240. Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.</p></div>
+   <p class="u" id="lgHint">Gambar diubah otomatis jadi 190×190 (di layar TFT 1.8″ tampil diperkecil otomatis). Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.</p></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>UPDATE FIRMWARE &amp; LOGO VIA WIFI</span></div>
+   <p class="u">Menyalakan WiFi di alat (Bluetooth otomatis mati &amp; halaman ini terputus). Lewat WiFi kamu bisa update firmware (.bin), ganti logo loading/standby, dan ganti nama/password WiFi alat.</p>
+   <button class="btn" id="wfOn">NYALAKAN WIFI ALAT</button>
+   <div id="wfInfo" class="u" style="display:none;margin-top:10px;line-height:1.6"></div></div>
   <div class="p" style="margin-top:12px"><div class="lb"><span>RESTART ALAT</span></div><p class="u">Perlu dilakukan setelah ganti nama Bluetooth supaya nama baru dipakai.</p><button class="btn red" id="rsBtn">RESTART</button></div>
  </div>
 </section>
@@ -266,7 +270,7 @@ $('#mxb').onclick=e=>{const d=e.target.dataset;if(d.o!=null){S.route[d.o]=+d.k;C
 function buildPre(){$('#slots').innerHTML=[0,1,2,3,4].map(i=>`<div class="p"><div class="or crown" style="font-size:22px">${i+1}</div><div class="u">PRESET SLOT</div><div class="row"><button class="btn" data-ld="${i}">LOAD</button><button class="btn v" data-sv="${i}">SAVE</button></div></div>`).join('')}
 $('#slots').onclick=e=>{const d=e.target.dataset;if(d.ld!=null){if(confirm('Load preset '+(+d.ld+1)+'?')){send('x',[9,+d.ld]);setTimeout(()=>send('y',[0x0B]),400);toast('Preset '+(+d.ld+1)+' dipanggil')}}else if(d.sv!=null&&confirm('Timpa preset '+(+d.sv+1)+'?')){send('z',[0x0A,+d.sv]);toast('Preset '+(+d.sv+1)+' tersimpan')}};
 /* ---- PENGATURAN ALAT: nama BLE, PIN, logo (characteristic SETTINGS) ---- */
-const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
+const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,WIFI:0x15,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
 const KE={1:'Belum login',2:'Data tidak valid',3:'Alat tidak punya penyimpanan logo (di Arduino IDE pilih Partition Scheme yang ada SPIFFS)',4:'Memori alat tidak cukup',5:'Urutan data kacau, coba lagi',6:'Data rusak saat dikirim, coba lagi',7:'Alat sibuk / terkunci 10 detik, coba lagi nanti',8:'PIN salah'};
 let setc=null,dinfo=null,limg=null,sb=false;const KW=new Map();
 const enc=s=>[...new TextEncoder().encode(s)],asciiOk=s=>!/[^\x20-\x7E]/.test(s);
@@ -304,15 +308,15 @@ $('#pnSv').onclick=()=>sRun(async()=>{const a=$('#pn1').value,b=$('#pn2').value;
  await cmdOk([K.PIN,...enc(a)],K.PIN);$('#pn1').value=$('#pn2').value='';sStat('✓ Password disimpan. Koneksi berikutnya wajib PIN.');await refreshInfo()});
 $('#pnDel').onclick=()=>sRun(async()=>{await cmdOk([K.PIN],K.PIN);sStat('✓ Password dihapus.');await refreshInfo()});
 $('#rsBtn').onclick=()=>sRun(async()=>{if(!confirm('Restart alat sekarang? Suara akan terputus sesaat.'))return;await cmdOk([K.RESTART],K.RESTART);sStat('✓ Alat restart… hubungkan lagi setelah ±5 detik.')});
-function lgDraw(){if(!limg)return;const c=$('#lgCv'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,240,240);
- const k=$('#lgFit').value==='cover'?Math.max(240/limg.width,240/limg.height):Math.min(240/limg.width,240/limg.height),w=limg.width*k,h=limg.height*k;
- x.imageSmoothingQuality='high';x.drawImage(limg,(240-w)/2,(240-h)/2,w,h)}
+function lgDraw(){if(!limg)return;const c=$('#lgCv'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,190,190);
+ const k=$('#lgFit').value==='cover'?Math.max(190/limg.width,190/limg.height):Math.min(190/limg.width,190/limg.height),w=limg.width*k,h=limg.height*k;
+ x.imageSmoothingQuality='high';x.drawImage(limg,(190-w)/2,(190-h)/2,w,h)}
 $('#lgFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();
  im.onload=()=>{limg=im;lgDraw();renderSet();URL.revokeObjectURL(im.src)};im.onerror=()=>toast('Gambar tidak bisa dibaca');im.src=URL.createObjectURL(f)};
 $('#lgFit').onchange=lgDraw;
 function rgb565le(rgba){const o=new Uint8Array(rgba.length/2);for(let i=0,j=0;i<rgba.length;i+=4){const v=((rgba[i]&0xF8)<<8)|((rgba[i+1]&0xFC)<<3)|(rgba[i+2]>>3);o[j++]=v&255;o[j++]=v>>8}return o}
 $('#lgSend').onclick=()=>sRun(async()=>{if(!limg)return;lgDraw();
- const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,240,240).data),mask=+$('#lgTgt').value;
+ const data=rgb565le($('#lgCv').getContext('2d').getImageData(0,0,190,190).data),mask=+$('#lgTgt').value;
  await cmdOk([K.LB,mask],K.LB);
  // Tiap potongan WAJIB dikonfirmasi alat sebelum lanjut ke potongan berikutnya -> lebih lambat drpd
  // versi lama, tapi gak akan lagi gagal diam-diam di tengah jalan (Bluetooth ponsel suka buang paket).
@@ -329,6 +333,11 @@ $('#lgSend').onclick=()=>sRun(async()=>{if(!limg)return;lgDraw();
  }finally{pg.style.display='none'}
  sStat('✓ Logo tersimpan. Tampil saat boot / standby berikutnya.');await refreshInfo()});
 $('#lgDel').onclick=()=>sRun(async()=>{await cmdOk([K.LR,+$('#lgTgt').value],K.LR);sStat('✓ Logo kustom dihapus, kembali ke logo bawaan.');await refreshInfo()});
+$('#wfOn').onclick=()=>sRun(async()=>{if(!confirm('Nyalakan WiFi alat? Bluetooth akan mati dan koneksi ini terputus. Untuk kembali ke Bluetooth, klik tombol encoder di alat (alat restart).'))return;
+ const r=await kCall([K.WIFI],K.WIFI,8000);if(r.s!==0)throw new Error(KE[r.s]||('Kode error '+r.s));
+ const ssid=new TextDecoder().decode(r.d.slice(1,1+r.d[0])),e=$('#wfInfo');
+ e.style.display='';e.innerHTML='✓ WiFi alat menyala.<br>1) Sambungkan HP/laptop ke WiFi: <b></b> (password: lihat layar alat).<br>2) Buka <a href="http://192.168.4.1" target="_blank" rel="noopener" style="color:var(--c)">http://192.168.4.1</a><br>3) Selesai? Klik tombol encoder di alat → alat restart → hubungkan Bluetooth lagi.';
+ e.querySelector('b').textContent=ssid;sStat('✓ Mode WiFi aktif, Bluetooth terputus.')});
 $('#gs').onclick=()=>go('set');
 /* ---- nav ---- */
 function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));$('#gs').classList.toggle('on',p=='set');if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')renderSet()}
