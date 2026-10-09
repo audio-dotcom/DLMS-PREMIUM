@@ -59,12 +59,13 @@ progress{width:100%;height:8px;accent-color:var(--c)}
 .mo{position:fixed;inset:0;z-index:20;background:#000d;display:none;align-items:center;justify-content:center;padding:16px}.mo.on{display:flex}
 .chip{display:inline-block;padding:4px 11px;margin:0 6px 6px 0;border-radius:6px;background:#262a31;font-size:12px;font-weight:600;color:var(--d)}.chip.on{background:var(--g);color:#000}
 #gs{padding:8px 12px}.pv{width:auto;max-width:100%;height:auto;border:1px solid var(--cd);border-radius:8px;background:#000;margin:10px 0}
+#inb0 .btn,#inb1 .btn{padding:8px 10px}#inb0,#inb1{gap:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body>
 <header><h1><img src="logo-header.png" alt="DLMS Premium" style="height:36px;width:auto;display:block;margin-bottom:3px"><small>YSN AUDIO · X-OVER · GATE · 5-PRESET</small></h1><span id="genPill" class="pill" style="display:none;color:var(--r);border-color:var(--r)">● TEST SIGNAL</span><span id="st" class="pill">OFFLINE</span><button class="btn" id="cn">CONNECT</button><button class="btn v" id="dm">DEMO</button><button class="btn" id="gs" title="Pengaturan alat">⚙</button></header>
 <nav id="nav"><button data-p="dash" class="on">DASH</button><button data-p="ch">CHANNEL</button><button data-p="mx">MATRIX</button><button data-p="pre">PRESET</button><button data-p="gen">TEST SIG</button></nav>
 <main>
-<section id="dash" class="pg on"><div class="gr2"><div class="p g"><div class="lb"><span>IN L</span><span>INPUT</span></div><canvas id="gL"></canvas></div><div class="p g"><div class="lb"><span>IN R</span><button class="btn red" id="ma">MUTE ALL</button></div><canvas id="gR"></canvas></div></div><div class="cards" id="cards"></div></section>
+<section id="dash" class="pg on"><div class="gr2"><div class="p g"><div class="lb"><span>IN L</span><span>INPUT</span></div><canvas id="gL"></canvas><div class="row" id="inb0"></div></div><div class="p g"><div class="lb"><span>IN R</span><button class="btn red" id="ma">MUTE ALL</button></div><canvas id="gR"></canvas><div class="row" id="inb1"></div></div></div><div class="cards" id="cards"></div></section>
 <section id="ch" class="pg"><div class="row seg" id="chs"></div><div class="row seg" id="tbs"></div><div id="cb"></div></section>
 <section id="mx" class="pg"><div class="p"><div class="lb" style="margin-bottom:12px"><span>MATRIX ROUTING</span><span>IN → OUT</span></div><div class="mx" id="mxb"></div></div></section>
 <section id="pre" class="pg"><div class="sl" id="slots"></div><p class="u">Load memanggil preset di perangkat lalu menyinkronkan seluruh parameter (termasuk slope x-over & noise gate). Generator sinyal uji TIDAK ikut tersimpan/dimuat di preset — dianggap alat bantu sementara, bukan bagian dari setelan permanen.</p></section>
@@ -111,7 +112,7 @@ progress{width:100%;height:8px;accent-color:var(--c)}
 <script>
 'use strict';
 const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
-const U={svc:'4fafc201-1fb5-459e-8fcc-c5c9c331914b',ctl:'beb5483e-36e1-4688-b7f5-ea07361b26a8',st:'beb5483e-36e1-4688-b7f5-ea07361b26a9',rta:'beb5483e-36e1-4688-b7f5-ea07361b26aa',set:'beb5483e-36e1-4688-b7f5-ea07361b26ab'};
+const U={svc:'4fafc201-1fb5-459e-8fcc-c5c9c331914b',ctl:'beb5483e-36e1-4688-b7f5-ea07361b26a8',st:'beb5483e-36e1-4688-b7f5-ea07361b26a9',rta:'beb5483e-36e1-4688-b7f5-ea07361b26aa',set:'beb5483e-36e1-4688-b7f5-ea07361b26ab',spec:'beb5483e-36e1-4688-b7f5-ea07361b26ac'};
 const FI=[20,22,25,28,32,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,10000,12500,16000,20000];
 const BC=['#ff465a','#ff9628','#ffd640','#78ff5a','#00f0aa','#00c8ff','#5a82ff','#be64ff','#ff64c8'];
 const RN=['L','R','L+R'],CC=['#3b82ff','#ff3b6b','#ffd640','#2de2a6'];
@@ -125,9 +126,9 @@ const XF={LR:{1:[1],2:[1,1],4:[1,1,1,1]},BW:{1:[1],2:[1,1],4:[1,1,1,1]},BSL:{1:[
 function xoverMaxHz(mode){const m=XM[mode],fsf=XF[m.fam][m.ns];const mx=Math.max(...fsf);const b=Math.floor(0.9*24000/mx);return Math.min(20000,b)}
 const fmt=f=>f<1e3?''+f:(f%1e3==0?f/1e3:f%100==0?(f/1e3).toFixed(1):(f/1e3).toFixed(2))+'k';
 const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
-const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],hpf:[20,20,20,20],lpf:[20000,20000,20000,20000],
+const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],inGain:[0,0],inMute:[0,0],phase:[0,0,0,0],inPhase:[0,0],hpf:[20,20,20,20],lpf:[20000,20000,20000,20000],
  hpfMode:[0,0,0,0],lpfMode:[0,0,0,0],
- peq:[0,1,2,3].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3].map(()=>({t:0,a:10,r:100})),
+ peq:[0,1,2,3,4,5].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3,4,5].map(()=>({t:0,a:10,r:100,o:4})),
  gateOn:[false,false,false,false],gateT:[-50,-50,-50,-50],gateA:[5,5,5,5],gateR:[150,150,150,150],
  genMode:0,genLevel:-20};
 let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false;const Q=new Map();
@@ -137,9 +138,12 @@ const toast=(m,ms)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');c
 function send(k,a){if(demo||!ctl)return;Q.set(k,a);if(!busy)pump()}
 async function pump(){busy=true;while(Q.size){const[k,a]=Q.entries().next().value;Q.delete(k);try{await ctl.writeValueWithoutResponse(new Uint8Array(a))}catch(e){try{await ctl.writeValue(new Uint8Array(a))}catch(_){}}await new Promise(r=>setTimeout(r,22))}busy=false}
 const C={route:c=>send('r'+c,[1,c,S.route[c]]),gain:c=>send('g'+c,[2,c,...i16(S.gain[c])]),
- mute:()=>send('m',[3,S.mute.reduce((m,v,i)=>m|(v<<(i+2)),0)]),hpf:c=>send('h'+c,[4,c,...i16(S.hpf[c])]),lpf:c=>send('l'+c,[5,c,...i16(S.lpf[c])]),
+ mute:()=>send('m',[3,S.mute.reduce((m,v,i)=>m|(v<<(i+2)),0)|(S.inMute[0]?1:0)|(S.inMute[1]?2:0)]),
+ ingain:k=>send('ig'+k,[2,4+k,...i16(S.inGain[k])]),
+ phase:()=>send('ph',[15,S.phase.reduce((m,v,i)=>m|(v<<i),0)|(S.inPhase[0]<<4)|(S.inPhase[1]<<5)]),
+ spec:(on,c,t)=>send('sp',[0x30,on?1:0,c,t]),hpf:c=>send('h'+c,[4,c,...i16(S.hpf[c])]),lpf:c=>send('l'+c,[5,c,...i16(S.lpf[c])]),
  peq:(c,b)=>{const p=S.peq[c][b];send('p'+c+b,[6,c,b,p.f,...i16(Math.round(p.g*10)),...i16(p.q)])},
- dly:c=>send('d'+c,[7,c,...i16(S.dly[c])]),lim:c=>{const l=S.lim[c];send('i'+c,[8,c,...i16(Math.round(l.t*10)),...i16(l.a),...i16(l.r)])},
+ dly:c=>send('d'+c,[7,c,...i16(S.dly[c])]),lim:c=>{const l=S.lim[c];send('i'+c,[8,c,...i16(Math.round(l.t*10)),...i16(l.a),...i16(l.r),...i16(Math.round(l.o*10))])},
  gate:c=>send('gt'+c,[12,c,S.gateOn[c]?1:0,...i16(Math.round(S.gateT[c]*10)),...i16(Math.round(S.gateA[c])),...i16(Math.round(S.gateR[c]))]),
  xtype:(c,sisi)=>send('xt'+c+sisi,[13,c,sisi,sisi==0?S.hpfMode[c]:S.lpfMode[c]]),
  gen:()=>send('gen',[14,S.genMode,...i16(Math.round(S.genLevel*10))])};
@@ -148,6 +152,7 @@ async function connect(){
  try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});dev.addEventListener('gattserverdisconnected',()=>{ctl=null;setc=null;dinfo=null;setSt();renderSet()});
   const sv=await(await dev.gatt.connect()).getPrimaryService(U.svc);const c0=await sv.getCharacteristic(U.ctl);
   const st=await sv.getCharacteristic(U.st),rt=await sv.getCharacteristic(U.rta);
+  let sp=null;try{sp=await sv.getCharacteristic(U.spec)}catch(_){sp=null}   // firmware lama tidak punya spektrum -> dilewati
   st.addEventListener('characteristicvaluechanged',e=>parseSt(e.target.value));rt.addEventListener('characteristicvaluechanged',e=>{for(let i=0;i<6;i++)T[i]=e.target.value.getUint8(i)/255*60-60});
   // Pengaturan alat (firmware baru): kalau alat pakai PIN, login dulu sebelum boleh mengontrol.
   // Firmware lama tidak punya characteristic ini -> dilewati saja, app jalan seperti biasa.
@@ -157,13 +162,13 @@ async function connect(){
    if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){dev.gatt.disconnect();toast('Login dibatalkan');return}
    $('#nmIn').value=dinfo.name}
   ctl=c0;
-  await st.startNotifications();await rt.startNotifications();demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));toast('Terhubung');renderSet()
+  await st.startNotifications();await rt.startNotifications();if(sp){sp.addEventListener('characteristicvaluechanged',e=>parseSpec(e.target.value));await sp.startNotifications()}demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));toast('Terhubung');renderSet();specSync()
  }catch(e){toast('Gagal: '+(e.message||e))}}
 function parseSt(v){
  if(v.byteLength<29)return;let p=0;
  for(let i=0;i<4;i++)S.route[i]=v.getUint8(p++);for(let i=0;i<4;i++,p+=2)S.gain[i]=v.getInt16(p,true);
  for(let i=0;i<4;i++,p+=2)S.hpf[i]=v.getUint16(p,true);for(let i=0;i<4;i++,p+=2)S.lpf[i]=v.getUint16(p,true);
- const m=v.getUint8(p);p++;for(let i=0;i<4;i++)S.mute[i]=(m>>(i+2))&1;
+ const m=v.getUint8(p);p++;for(let i=0;i<4;i++)S.mute[i]=(m>>(i+2))&1;S.inMute[0]=m&1;S.inMute[1]=(m>>1)&1;
  if(v.byteLength>=62){
    for(let i=0;i<4;i++)S.hpfMode[i]=cl(v.getUint8(p++),0,8);
    for(let i=0;i<4;i++)S.lpfMode[i]=cl(v.getUint8(p++),0,8);
@@ -175,6 +180,14 @@ function parseSt(v){
  if(v.byteLength>=65){
    S.genMode=v.getUint8(p++);
    S.genLevel=v.getInt16(p,true)/10; p+=2;
+ }
+ if(v.byteLength>=118){   // v3: gain input, invert phase, limiter 6 kanal (OUT1-4, IN-L, IN-R)
+   for(let i=0;i<2;i++,p+=2)S.inGain[i]=v.getInt16(p,true);
+   const pm=v.getUint8(p++);for(let i=0;i<4;i++)S.phase[i]=(pm>>i)&1;S.inPhase[0]=(pm>>4)&1;S.inPhase[1]=(pm>>5)&1;
+   for(let i=0;i<6;i++,p+=2)S.lim[i].t=v.getInt16(p,true)/10;
+   for(let i=0;i<6;i++,p+=2)S.lim[i].o=v.getUint16(p,true)/10;
+   for(let i=0;i<6;i++,p+=2)S.lim[i].a=v.getUint16(p,true);
+   for(let i=0;i<6;i++,p+=2)S.lim[i].r=v.getUint16(p,true);
  }
  buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();updateGenPill()}
 function setSt(){const e=$('#st');e.className='pill '+(ctl?'on':demo?'demo':'');e.textContent=ctl?'LINKED':demo?'DEMO':'OFFLINE';$('#cn').textContent=ctl?'DISCONNECT':'CONNECT'}
@@ -192,32 +205,36 @@ function led(c,db,pk,col){const[x,w,h]=fit(c),n=Math.floor(h/5);x.clearRect(0,0,
 function loop(){for(let i=0;i<6;i++){const t=cl(T[i],-60,0);M[i]+=(t-M[i])*(t>M[i]?.55:.1);P[i]=Math.max(M[i],P[i]-.35)}
  if(page=='dash'){gauge($('#gL'),M[0],'#3b82ff');gauge($('#gR'),M[1],'#ff3b6b');$$('.led').forEach(c=>{const i=+c.dataset.i;led(c,M[i+2],P[i+2],CC[i])})}requestAnimationFrame(loop)}
 /* ---- dashboard ---- */
-function buildCards(){$('#cards').innerHTML=[0,1,2,3].map(i=>`<div class="p"><div class="lb"><span style="color:${CC[i]}">OUT ${i+1}</span><span class="b" data-rt="${i}" style="cursor:pointer">${RN[S.route[i]]}</span></div>
+function buildCards(){buildInBtns();$('#cards').innerHTML=[0,1,2,3].map(i=>`<div class="p"><div class="lb"><span style="color:${CC[i]}">OUT ${i+1}</span><span class="b" data-rt="${i}" style="cursor:pointer">${RN[S.route[i]]}</span></div>
 <canvas class="led" data-i="${i}"></canvas><div class="val" id="gv${i}">${S.gain[i]>0?'+':''}${S.gain[i]}<span class="u"> dB</span></div>
-<input type="range" min="-40" max="6" value="${S.gain[i]}" data-g="${i}"><div class="row"><button class="btn red ${S.mute[i]?'on':''}" data-m="${i}">MUTE</button><button class="btn" data-e="${i}">EDIT</button></div>
+<input type="range" min="-40" max="6" value="${S.gain[i]}" data-g="${i}"><div class="row"><button class="btn red ${S.mute[i]?'on':''}" data-m="${i}">MUTE</button><button class="btn ${S.phase[i]?'on':''}" data-ph="${i}">PHASE</button><button class="btn" data-e="${i}">EDIT</button></div>
 ${S.gateOn[i]?'<div class="u" style="color:var(--g)">● GATE ON ('+S.gateT[i]+'dB)</div>':''}</div>`).join('')}
 $('#cards').addEventListener('input',e=>{const i=e.target.dataset.g;if(i==null)return;S.gain[i]=+e.target.value;$('#gv'+i).firstChild.nodeValue=(S.gain[i]>0?'+':'')+S.gain[i];C.gain(+i)});
-$('#cards').addEventListener('click',e=>{const t=e.target,d=t.dataset;if(d.m!=null){S.mute[d.m]^=1;t.classList.toggle('on');C.mute()}else if(d.e!=null){ch=+d.e;go('ch')}else if(d.rt!=null){S.route[d.rt]=(S.route[d.rt]+1)%3;t.textContent=RN[S.route[d.rt]];C.route(+d.rt)}});
-$('#ma').onclick=()=>{const a=S.mute.every(v=>v);S.mute.fill(a?0:1);C.mute();buildCards()};
+$('#cards').addEventListener('click',e=>{const t=e.target,d=t.dataset;if(d.m!=null){S.mute[d.m]^=1;t.classList.toggle('on');C.mute()}else if(d.ph!=null){S.phase[d.ph]^=1;t.classList.toggle('on');C.phase()}else if(d.e!=null){ch=+d.e;go('ch')}else if(d.rt!=null){S.route[d.rt]=(S.route[d.rt]+1)%3;t.textContent=RN[S.route[d.rt]];C.route(+d.rt)}});
+$('#ma').onclick=()=>{const a=S.mute.every(v=>v)&&S.inMute.every(v=>v);S.mute.fill(a?0:1);S.inMute.fill(a?0:1);C.mute();buildCards()};
 /* ---- channel ---- */
-const TB=[['xo','X-OVER'],['eq','PARA EQ'],['dl','DELAY'],['li','LIMITER'],['gt','GATE']];
-function buildCh(){$('#chs').innerHTML=[0,1,2,3].map(i=>`<button class="btn ${i==ch?'on':''}" data-c="${i}">OUT ${i+1}</button>`).join('');$('#tbs').innerHTML=TB.map(t=>`<button class="btn v ${t[0]==tab?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('');
+const TB=[['xo','X-OVER'],['eq','PARA EQ'],['dl','DELAY'],['li','LIMITER'],['gt','GATE']],TBI=[['ip','INPUT'],['eq','PARA EQ'],['li','LIMITER']];
+const LRV=[1,1.5,2,3,4,6,8,10,20,50,100],ratioTxt=o=>o>=50?'LIM':(Number.isInteger(o)?o:o.toFixed(1))+':1',chName=c=>c<4?'OUT '+(c+1):c==4?'IN L':'IN R';
+function buildCh(){const TT=ch<4?TB:TBI;if(!TT.some(t=>t[0]==tab))tab=ch<4?'xo':'ip';
+ $('#chs').innerHTML=[0,1,2,3,4,5].map(i=>`<button class="btn ${i==ch?'on':''}" data-c="${i}">${chName(i)}</button>`).join('');$('#tbs').innerHTML=TT.map(t=>`<button class="btn v ${t[0]==tab?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('');
  const b=$('#cb');
  if(tab=='xo'){
    const optHpf=XM.map((m,i)=>`<option value="${i}" ${i==S.hpfMode[ch]?'selected':''}>${m.n}</option>`).join('');
    const optLpf=XM.map((m,i)=>`<option value="${i}" ${i==S.lpfMode[ch]?'selected':''}>${m.n}</option>`).join('');
-   b.innerHTML=`<div class="p"><div class="xh"><div class="xg"><span class="xt">HPF</span><input type="number" id="nh" min="20" max="20000" value="${S.hpf[ch]}"><select id="th">${optHpf}</select></div><div class="xg"><span class="xt">LPF</span><input type="number" id="nl" min="20" max="20000" value="${S.lpf[ch]}"><select id="tl">${optLpf}</select></div></div><canvas id="gr" class="gc"></canvas><p class="u" id="xolim"></p></div>`;
+   b.innerHTML=`<div class="p"><div class="xh"><div class="xg"><span class="xt">HPF</span><input type="number" id="nh" min="20" max="20000" value="${S.hpf[ch]}"><select id="th">${optHpf}</select></div><div class="xg"><span class="xt">LPF</span><input type="number" id="nl" min="20" max="20000" value="${S.lpf[ch]}"><select id="tl">${optLpf}</select></div></div><canvas id="gr" class="gc"></canvas>${specRow('sesudah crossover')}<p class="u" id="xolim"></p></div>`;
    setXolim();
  }
- else if(tab=='eq')b.innerHTML=`<div class="p"><div class="row seg" id="bds"></div><canvas id="gr" class="gc"></canvas><div class="row" id="eqv"></div></div>`;
+ else if(tab=='eq')b.innerHTML=`<div class="p"><div class="row seg" id="bds"></div><canvas id="gr" class="gc"></canvas>${specRow('sesudah PEQ')}<div class="row" id="eqv"></div></div>`;
  else if(tab=='dl')b.innerHTML=`<div class="p"><div class="lb"><span>DELAY</span><span class="seg" id="du"></span></div><div class="val" id="dv" style="font-size:38px;margin:10px 0"></div><input type="range" id="dr" min="0" max="3000" value="${S.dly[ch]}"><svg viewBox="0 0 300 30" width="100%" height="30"><line x1="6" y1="22" x2="294" y2="22" stroke="#8b94a3"/><rect x="5" y="4" width="3" height="18" fill="#3b82ff"/><rect id="dp" y="4" width="3" height="18" fill="#ff3b6b"/></svg></div>`;
- else if(tab=='li')b.innerHTML=`<div class="p"><div class="lb"><span>LIMITER</span><span class="u">ratio diatur di perangkat</span></div>${[['t','THRESHOLD','dB',-30,0,.5],['a','ATTACK','ms',1,100,1],['r','RELEASE','ms',10,5000,10]].map(s=>`<div class="lb" style="margin-top:14px"><span>${s[1]}</span><span class="val" id="lv${s[0]}">${S.lim[ch][s[0]]}<span class="u"> ${s[2]}</span></span></div><input type="range" data-l="${s[0]}" min="${s[3]}" max="${s[4]}" step="${s[5]}" value="${S.lim[ch][s[0]]}">`).join('')}</div>`;
+ else if(tab=='ip'){const k=ch-4;b.innerHTML=`<div class="p"><div class="lb"><span>${chName(ch)} · GAIN INPUT</span><span class="val" id="igv">${S.inGain[k]>0?'+':''}${S.inGain[k]}<span class="u"> dB</span></span></div><input type="range" id="ig" min="-40" max="6" value="${S.inGain[k]}"><div class="row"><button class="btn red ${S.inMute[k]?'on':''}" data-im="1">MUTE</button><button class="btn ${S.inPhase[k]?'on':''}" data-ip="1">INVERT PHASE ${S.inPhase[k]?'(180°)':'(0°)'}</button></div><p class="u">Urutan di jalur input: PARA EQ → gain → limiter → invert phase. PEQ dan limiter input ada di tab masing-masing.</p></div>`}
+ else if(tab=='li'){const l=S.lim[ch],ri=LRV.reduce((bb,v,i)=>Math.abs(v-l.o)<Math.abs(LRV[bb]-l.o)?i:bb,0);
+   b.innerHTML=`<div class="p"><div class="lb"><span>LIMITER ${chName(ch)}</span><span class="u">threshold 0 dB = tidak aktif</span></div>${[['t','THRESHOLD','dB',-30,0,.5],['a','ATTACK','ms',1,100,1],['r','RELEASE','ms',10,5000,10]].map(s=>`<div class="lb" style="margin-top:14px"><span>${s[1]}</span><span class="val" id="lv${s[0]}">${l[s[0]]}<span class="u"> ${s[2]}</span></span></div><input type="range" data-l="${s[0]}" min="${s[3]}" max="${s[4]}" step="${s[5]}" value="${l[s[0]]}">`).join('')}<div class="lb" style="margin-top:14px"><span>RATIO</span><span class="val" id="lvo">${ratioTxt(l.o)}</span></div><input type="range" id="lrs" min="0" max="${LRV.length-1}" step="1" value="${ri}"></div>`}
  else { // gt = gate
    b.innerHTML=`<div class="p"><div class="lb"><span>NOISE GATE</span><label class="row" style="margin:0;gap:6px"><input type="checkbox" id="gEn" ${S.gateOn[ch]?'checked':''}><span>${S.gateOn[ch]?'<b class=gateOpen>ENABLED</b>':'BYPASS'}</span></label></div>
    ${[['T','THRESHOLD','dB',-80,0,1,'gateT'],['A','ATTACK','ms',0.5,200,0.5,'gateA'],['R','RELEASE','ms',10,3000,10,'gateR']].map(s=>`<div class="lb" style="margin-top:14px"><span>${s[1]}</span><span class="val" id="gv${s[0]}">${S[s[6]][ch]}<span class="u"> ${s[2]}</span></span></div><input type="range" data-gk="${s[6]}" min="${s[3]}" max="${s[4]}" step="${s[5]}" value="${S[s[6]][ch]}">`).join('')}
    <p class="u" style="margin-top:14px">Sinyal channel ini diredam sampai diam total kalau levelnya di bawah threshold. Naikkan attack/release kalau kedengaran "gerbang" terlalu tiba-tiba.</p></div>`;
  }
- if(tab=='xo'||tab=='eq')setup();if(tab=='eq')eqUi();if(tab=='dl')dlUi();
+ if(tab=='xo'||tab=='eq')setup();if(tab=='eq')eqUi();if(tab=='dl')dlUi();specSync();
 }
 function setXolim(){const mh=xoverMaxHz(S.hpfMode[ch]),ml=xoverMaxHz(S.lpfMode[ch]);$('#nh').max=mh;$('#nl').max=ml;
  $('#xolim').textContent=`Batas aman: HPF ≤ ${mh}Hz, LPF ≤ ${ml}Hz utk mode terpilih (Bessel dibatasi lebih rendah demi kestabilan filter).`}
@@ -227,8 +244,8 @@ function dlUi(){const v=S.dly[ch]/10,mm=v*.343,t=[v.toFixed(1)+' ms',mm.toFixed(
 $('#cb').addEventListener('change',e=>{const t=e.target;if(t.id=='th'){S.hpfMode[ch]=+t.value;const mh=xoverMaxHz(S.hpfMode[ch]);if(S.hpf[ch]>mh){S.hpf[ch]=mh;$('#nh').value=mh}C.xtype(ch,0);setXolim();draw()}
  else if(t.id=='tl'){S.lpfMode[ch]=+t.value;const ml=xoverMaxHz(S.lpfMode[ch]);if(S.lpf[ch]>ml){S.lpf[ch]=ml;$('#nl').value=ml}C.xtype(ch,1);setXolim();draw()}
  else if(t.id=='gEn'){S.gateOn[ch]=t.checked;C.gate(ch);buildCh()}});
-$('#cb').addEventListener('click',e=>{const d=e.target.dataset;if(d.u!=null){du=+d.u;dlUi()}else if(d.b!=null){bd=+d.b;eqUi();draw()}else if(d.z){S.peq[ch].forEach(p=>{p.g=0});S.peq[ch].forEach((_,b)=>C.peq(ch,b));eqUi();draw()}});
-$('#cb').addEventListener('input',e=>{const t=e.target;if(t.id=='dr'){S.dly[ch]=+t.value;C.dly(ch);dlUi()}else if(t.dataset.l){const k=t.dataset.l;S.lim[ch][k]=+t.value;$('#lv'+k).firstChild.nodeValue=t.value;C.lim(ch)}
+$('#cb').addEventListener('click',e=>{const d=e.target.dataset;if(d.u!=null){du=+d.u;dlUi()}else if(d.im!=null){S.inMute[ch-4]^=1;C.mute();buildCh();buildInBtns()}else if(d.ip!=null){S.inPhase[ch-4]^=1;C.phase();buildCh();buildInBtns()}else if(d.sp!=null){specOn=!specOn;try{localStorage.setItem('dlms_spec',specOn?'1':'0')}catch(_){}buildCh()}else if(d.b!=null){bd=+d.b;eqUi();draw()}else if(d.z){S.peq[ch].forEach(p=>{p.g=0});S.peq[ch].forEach((_,b)=>C.peq(ch,b));eqUi();draw()}});
+$('#cb').addEventListener('input',e=>{const t=e.target;if(t.id=='dr'){S.dly[ch]=+t.value;C.dly(ch);dlUi()}else if(t.id=='lrs'){S.lim[ch].o=LRV[+t.value];$('#lvo').textContent=ratioTxt(S.lim[ch].o);C.lim(ch)}else if(t.id=='ig'){const k=ch-4,g=+t.value;S.inGain[k]=g;$('#igv').firstChild.nodeValue=(g>0?'+':'')+g;C.ingain(k)}else if(t.dataset.l){const k=t.dataset.l;S.lim[ch][k]=+t.value;$('#lv'+k).firstChild.nodeValue=t.value;C.lim(ch)}
  else if(t.dataset.gk){const k=t.dataset.gk;S[k][ch]=+t.value;const lbl=k=='gateT'?'T':k=='gateA'?'A':'R';$('#gv'+lbl).firstChild.nodeValue=t.value;C.gate(ch)}
  else if(t.id=='nh'||t.id=='nl'){const mx=t.id=='nh'?xoverMaxHz(S.hpfMode[ch]):xoverMaxHz(S.lpfMode[ch]);const v=cl(+t.value|0,20,mx);(t.id=='nh'?S.hpf:S.lpf)[ch]=v;t.id=='nh'?C.hpf(ch):C.lpf(ch);draw()}else if(t.id=='qs'){S.peq[ch][bd].q=+t.value;C.peq(ch,bd);$('#qv').textContent=(t.value/10).toFixed(1);draw()}});
 function eqUi(){$('#bds').innerHTML=S.peq[ch].map((p,i)=>`<button class="btn ${i==bd?'on':''}" data-b="${i}" style="border-color:${BC[i]}">${i+1}</button>`).join('')+'<button class="btn red" data-z="1">FLAT</button>';const p=S.peq[ch][bd];
@@ -252,7 +269,7 @@ function xoverDb(freq,fc,mode,hp){const m=XM[mode],qs=XQ[m.fam][m.ns],fs=XF[m.fa
   if(hp){const num=r2*r2,den=(1-r2)*(1-r2)+r2/(q*q);tot+=10*Math.log10(num/den+1e-12)}
   else {const den=(1-r2)*(1-r2)+r2/(q*q);tot+=10*Math.log10(1/den+1e-12)}}
  return tot}
-function draw(){if(!gc||!gc.isConnected)return;[gx,gw,gh]=fit(gc);const xo=tab=='xo',x=gx;x.clearRect(0,0,gw,gh);x.font='600 11px Sora,sans-serif';x.fillStyle='#b5bcc7';x.lineWidth=1;
+function draw(){if(!gc||!gc.isConnected)return;[gx,gw,gh]=fit(gc);const xo=tab=='xo',x=gx;x.clearRect(0,0,gw,gh);drawSpec(x);x.font='600 11px Sora,sans-serif';x.fillStyle='#b5bcc7';x.lineWidth=1;
  [20,100,1e3,1e4,2e4].forEach(f=>{const px=X(f);x.strokeStyle='#262a31';x.beginPath();x.moveTo(px,0);x.lineTo(px,gh);x.stroke();x.fillText(fmt(f),Math.min(px+3,gw-26),gh-4)});
  (xo?[0,-12,-24,-36]:[-12,-6,0,6,12]).forEach(d=>{const y=Y(d);x.strokeStyle=d==0?'#8b94a3':'#262a31';x.beginPath();x.moveTo(0,y);x.lineTo(gw,y);x.stroke();x.fillText(d,3,y-2)});
  const pts=[];for(let i=0;i<=gw;i+=2){const f=XFREQ(i);const d=xo?xoverDb(f,S.hpf[ch],S.hpfMode[ch],true)+xoverDb(f,S.lpf[ch],S.lpfMode[ch],false):S.peq[ch].reduce((s,p)=>p.g?s+peqDb(p,f):s,0);pts.push([i,Y(d)])}
@@ -351,8 +368,30 @@ $('#wfOn').onclick=()=>sRun(async()=>{if(!confirm('Nyalakan WiFi alat? Bluetooth
  e.style.display='';e.innerHTML='✓ WiFi alat menyala.<br>1) Sambungkan HP/laptop ke WiFi: <b></b> (password: lihat layar alat).<br>2) Buka <a href="http://192.168.4.1" target="_blank" rel="noopener" style="color:var(--c)">http://192.168.4.1</a><br>3) Selesai? Klik tombol encoder di alat → alat restart → hubungkan Bluetooth lagi.';
  e.querySelector('b').textContent=ssid;sStat('✓ Mode WiFi aktif, Bluetooth terputus.')});
 $('#gs').onclick=()=>go('set');
+/* ---- INPUT di dashboard (mute / phase / edit) ---- */
+function buildInBtns(){[0,1].forEach(k=>{const e=$('#inb'+k);if(!e)return;e.innerHTML=`<button class="btn red ${S.inMute[k]?'on':''}" data-im="${k}">MUTE</button><button class="btn ${S.inPhase[k]?'on':''}" data-ip="${k}">PHASE</button><button class="btn" data-ie="${k}">EDIT</button>`})}
+$('#dash').addEventListener('click',e=>{const d=e.target.dataset;if(d.im!=null){S.inMute[d.im]^=1;C.mute();buildInBtns()}else if(d.ip!=null){S.inPhase[d.ip]^=1;C.phase();buildInBtns()}else if(d.ie!=null){ch=4+ +d.ie;tab='ip';go('ch')}});
+/* ---- SPEKTRUM live di grafik X-OVER & PARA EQ (32 bar log 20Hz-20kHz, data dari alat lewat BLE) ---- */
+let specOn=true;try{specOn=localStorage.getItem('dlms_spec')!=='0'}catch(_){}
+const SPD=new Array(32).fill(0);let SPi={ch:-1,t:-1,ts:0},specRaf=0;
+const specWant=()=>(page=='ch'&&specOn&&(tab=='xo'||tab=='eq'))?{c:ch,t:tab=='xo'?1:2}:null;   // titik: 1 = sesudah crossover, 2 = sesudah PEQ
+function specSync(){const w=specWant();if(w)C.spec(1,w.c,w.t);else if(ctl)C.spec(0,0,0)}
+setInterval(()=>{if(ctl&&specWant())specSync()},1000);   // alat otomatis berhenti kalau 4 detik tidak diperbarui
+function parseSpec(dv){if(dv.byteLength<34)return;SPi={ch:dv.getUint8(0),t:dv.getUint8(1),ts:performance.now()};for(let i=0;i<32;i++)SPD[i]=dv.getUint8(2+i)/255;specRedraw()}
+function specRedraw(){if(specRaf)return;specRaf=requestAnimationFrame(()=>{specRaf=0;if(gc&&gc.isConnected&&page=='ch'&&(tab=='xo'||tab=='eq'))draw()})}
+function specRow(txt){return `<div class="row"><button class="btn ${specOn?'on':''}" data-sp="1">SPEKTRUM ${specOn?'ON':'OFF'}</button><span class="u">bar live dari alat (${txt})</span></div>`}
+function drawSpec(x){const w=specWant();if(!w)return;if(!(SPi.ch==w.c&&SPi.t==w.t&&performance.now()-SPi.ts<1500))return;
+ const top=6,base=gh-4;for(let i=0;i<32;i++){const a=X(20*Math.pow(1000,i/32)),b=X(20*Math.pow(1000,(i+1)/32)),h=SPD[i]*(base-top);if(h<1)continue;const w2=Math.max(b-a-2,1);
+  x.fillStyle='rgba(255,176,40,.30)';x.fillRect(a+1,base-h,w2,h);x.fillStyle='rgba(255,196,80,.7)';x.fillRect(a+1,base-h,w2,2)}}
+// mode DEMO: spektrum simulasi (musik "pink" dikali respons filter yg sedang tampil)
+setInterval(()=>{if(!demo)return;const w=specWant();if(!w)return;const t=performance.now()/1e3;
+ for(let i=0;i<32;i++){const f=20*Math.pow(1000,(i+.5)/32);let l=-26-10*Math.log10(f/100)+6*Math.sin(t*2+i*1.7)*Math.sin(t*.7+i);
+  if(w.t==1&&w.c<4)l+=xoverDb(f,S.hpf[w.c],S.hpfMode[w.c],true)+xoverDb(f,S.lpf[w.c],S.lpfMode[w.c],false);
+  else l+=S.peq[w.c].reduce((s,p)=>p.g?s+peqDb(p,f):s,0);
+  const n=cl((l+90)/70,0,1);SPD[i]+=(n-SPD[i])*(n>SPD[i]?.6:.2)}
+ SPi={ch:w.c,t:w.t,ts:performance.now()};specRedraw()},100);
 /* ---- nav ---- */
-function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));$('#gs').classList.toggle('on',p=='set');if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')renderSet()}
+function go(p){page=p;$$('.pg').forEach(s=>s.classList.toggle('on',s.id==p));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p==p));$('#gs').classList.toggle('on',p=='set');if(p=='ch')buildCh();if(p=='gen')buildGen();if(p=='set')renderSet();specSync()}
 $('#nav').onclick=e=>{if(e.target.dataset.p)go(e.target.dataset.p)};
 function buildAll(){buildCards();buildMx();if(page=='ch')buildCh()}
 buildAll();buildPre();buildGen();setSt();if(!navigator.bluetooth){demo=true;$('#dm').classList.add('on');setSt()}loop();renderSet();
