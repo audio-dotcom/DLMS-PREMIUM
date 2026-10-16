@@ -97,6 +97,9 @@ progress{width:100%;height:8px;accent-color:var(--c)}
    <div class="row"><button class="btn" id="lgSend" disabled>KIRIM LOGO</button><button class="btn red" id="lgDel">LOGO BAWAAN</button></div>
    <progress id="lgProg" value="0" max="100" style="display:none"></progress>
    <p class="u" id="lgHint">Gambar diubah otomatis jadi 190×190 (di layar TFT 1.8″ tampil diperkecil otomatis). Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.</p></div>
+  <div class="p" style="margin-top:12px"><div class="lb"><span>WAKTU STANDBY LOGO</span><span class="u" id="sbNow"></span></div>
+   <div class="row"><select id="sbSel" class="grow"></select><button class="btn" id="sbSv">SIMPAN</button></div>
+   <p class="u" id="sbHint">Layar alat pindah ke logo standby kalau encoder/tombol tidak disentuh selama waktu ini. Putar/klik encoder untuk membangunkan. Halaman RTA dan WiFi tidak pernah masuk standby.</p></div>
   <div class="p" style="margin-top:12px"><div class="lb"><span>UPDATE FIRMWARE &amp; LOGO VIA WIFI</span></div>
    <p class="u">Menyalakan WiFi di alat (Bluetooth otomatis mati &amp; halaman ini terputus). Lewat WiFi kamu bisa update firmware (.bin), ganti logo loading/standby, dan ganti nama/password WiFi alat.</p>
    <button class="btn" id="wfOn">NYALAKAN WIFI ALAT</button>
@@ -295,7 +298,7 @@ $('#mxb').onclick=e=>{const d=e.target.dataset;if(d.o!=null){S.route[d.o]=+d.k;C
 function buildPre(){$('#slots').innerHTML=[0,1,2,3,4].map(i=>`<div class="p"><div class="or crown" style="font-size:22px">${i+1}</div><div class="u">PRESET SLOT</div><div class="row"><button class="btn" data-ld="${i}">LOAD</button><button class="btn v" data-sv="${i}">SAVE</button></div></div>`).join('')}
 $('#slots').onclick=e=>{const d=e.target.dataset;if(d.ld!=null){if(confirm('Load preset '+(+d.ld+1)+'?')){send('x',[9,+d.ld]);setTimeout(()=>send('y',[0x0B]),400);toast('Preset '+(+d.ld+1)+' dipanggil')}}else if(d.sv!=null&&confirm('Timpa preset '+(+d.sv+1)+'?')){send('z',[0x0A,+d.sv]);toast('Preset '+(+d.sv+1)+' tersimpan')}};
 /* ---- PENGATURAN ALAT: nama BLE, PIN, logo (characteristic SETTINGS) ---- */
-const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,WIFI:0x15,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
+const K={AUTH:0x10,NAME:0x11,PIN:0x12,INFO:0x13,RESTART:0x14,WIFI:0x15,SB:0x16,LB:0x20,LD:0x21,LE:0x22,LR:0x23};
 const KE={1:'Belum login',2:'Data tidak valid',3:'Alat tidak punya penyimpanan logo (di Arduino IDE pilih Partition Scheme yang ada SPIFFS)',4:'Memori alat tidak cukup',5:'Urutan data kacau, coba lagi',6:'Data rusak saat dikirim, coba lagi',7:'Alat sibuk / terkunci 10 detik, coba lagi nanti',8:'PIN salah'};
 let setc=null,dinfo=null,limg=null,sb=false,LW=190,LH=190;const KW=new Map();
 const enc=s=>[...new TextEncoder().encode(s)],asciiOk=s=>!/[^\x20-\x7E]/.test(s);
@@ -306,7 +309,7 @@ function kNotify(e){const dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOf
 const kRaw=b=>{const u=new Uint8Array(b);return setc.writeValueWithResponse?setc.writeValueWithResponse(u):setc.writeValue(u)};
 async function kCall(b,cmd,ms){const p=new Promise((r,j)=>{const t=setTimeout(()=>{KW.delete(cmd);j(new Error('Alat tidak merespons'))},ms||6000);KW.set(cmd,{r,t})});
  try{await kRaw(b)}catch(e){const w=KW.get(cmd);if(w){clearTimeout(w.t);KW.delete(cmd)}p.catch(()=>{});throw e}return p}
-async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;const o=6+d[5];return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5])),lw:d.length>=o+4?(d[o]|d[o+1]<<8):190,lh:d.length>=o+4?(d[o+2]|d[o+3]<<8):190}}
+async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;const o=6+d[5];return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5])),lw:d.length>=o+4?(d[o]|d[o+1]<<8):190,lh:d.length>=o+4?(d[o+2]|d[o+3]<<8):190,ti:d.length>=o+6?(d[o+4]|d[o+5]<<8):null}}
 function askPin(){return new Promise(res=>{const m=$('#pinm'),i=$('#pinv');i.value='';m.classList.add('on');setTimeout(()=>i.focus(),60);
  const done=v=>{m.classList.remove('on');$('#pinok').onclick=$('#pinno').onclick=i.onkeydown=null;res(v)};
  $('#pinok').onclick=()=>done(i.value);$('#pinno').onclick=()=>done(null);i.onkeydown=e=>{if(e.key==='Enter')done(i.value)}})}
@@ -321,13 +324,25 @@ function renderSet(){const on=!!ctl&&!!setc&&!!dinfo;
  $('#setChips').innerHTML=[[d.pinSet?'PASSWORD AKTIF':'TANPA PASSWORD',d.pinSet],[d.fs?'PENYIMPANAN LOGO SIAP':'PENYIMPANAN LOGO TIDAK ADA',d.fs],
   [d.lb?'LOGO LOADING: KUSTOM':'LOGO LOADING: BAWAAN',d.lb],[d.ls?'LOGO STANDBY: KUSTOM':'LOGO STANDBY: BAWAAN',d.ls]].map(([t,o])=>`<span class="chip ${o?'on':''}">${t}</span>`).join('');
  if(d.lw>0&&d.lh>0&&(d.lw!==LW||d.lh!==LH)){LW=d.lw;LH=d.lh;const c=$('#lgCv');c.width=LW;c.height=LH;lgDraw()}
- $('#lgDim').textContent=LW+'×'+LH;
+ $('#lgDim').textContent=LW+'×'+LH;sbFill();
  $('#lgSend').disabled=!(d.fs&&limg);$('#lgDel').disabled=!d.fs;
  $('#lgHint').textContent=d.fs?('Gambar diubah otomatis jadi '+LW+'×'+LH+' (ukuran logo di alat; tampil 1:1 kalau sama dengan layar, kalau lebih besar diperkecil otomatis). Saat alat menyimpan, suara bisa tersendat sekejap – lakukan saat alat tidak dipakai live.'):KE[3]}
 async function sRun(fn){if(sb)return;sb=true;const bs=$$('#set button');bs.forEach(b=>b.disabled=true);
  try{await fn()}catch(e){sStat('✗ '+(e.message||e));toast('✗ '+(e.message||e),3000)}
  finally{sb=false;bs.forEach(b=>b.disabled=false);renderSet()}}
-async function refreshInfo(){dinfo=await getInfo();$('#nmIn').value=dinfo.name}
+async function refreshInfo(){dinfo=await getInfo();$('#nmIn').value=dinfo.name;sbDirty=false}
+/* ---- WAKTU STANDBY LOGO ---- */
+const SBO=[[10,'10 detik'],[15,'15 detik'],[30,'30 detik'],[60,'1 menit'],[120,'2 menit'],[300,'5 menit'],[600,'10 menit'],[1800,'30 menit'],[3600,'1 jam'],[0,'Tidak pernah (standby mati)']];
+const sbTxt=v=>v==0?'NONAKTIF':v<60?v+' detik':v%60==0?(v/60)+' menit':v+' detik';
+let sbDirty=false;
+function sbFill(){const sel=$('#sbSel'),d=dinfo;if(!d)return;const ok=d.ti!=null;sel.disabled=!ok;$('#sbSv').disabled=!ok;
+ $('#sbNow').textContent=ok?'sekarang: '+sbTxt(d.ti):'';
+ if(!ok){sel.innerHTML='<option>—</option>';$('#sbHint').textContent='Firmware alat belum mendukung pengaturan ini – upload firmware terbaru dulu.';return}
+ if(sbDirty)return;
+ const o=SBO.slice();if(!o.some(x=>x[0]==d.ti))o.push([d.ti,sbTxt(d.ti)]);
+ sel.innerHTML=o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('');sel.value=d.ti}
+$('#sbSel').onchange=()=>{sbDirty=true};
+$('#sbSv').onclick=()=>sRun(async()=>{const v=+$('#sbSel').value;await cmdOk([K.SB,v&255,v>>8],K.SB);sStat('✓ Waktu standby logo: '+sbTxt(v)+'.');await refreshInfo()});
 async function cmdOk(b,cmd,ms){const r=await kCall(b,cmd,ms);if(r.s!==0)throw new Error(KE[r.s]||('Kode error '+r.s))}
 $('#nmSv').onclick=()=>sRun(async()=>{const n=$('#nmIn').value.trim();if(n.length<1||n.length>20||!asciiOk(n))throw new Error('Nama harus 1–20 karakter huruf/angka/simbol biasa');
  await cmdOk([K.NAME,...enc(n)],K.NAME);sStat('✓ Nama tersimpan. Tekan RESTART supaya nama baru dipakai.');$('#nmHint').textContent='Tersimpan. Restart alat, lalu hubungkan lagi dengan nama baru.'});
