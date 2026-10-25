@@ -168,9 +168,13 @@ async function connect(auto){
   // Firmware lama tidak punya characteristic ini -> dilewati saja, app jalan seperti biasa.
   setc=null;dinfo=null;
   try{setc=await sv.getCharacteristic(U.set)}catch(_){setc=null}
-  if(setc){setc.addEventListener('characteristicvaluechanged',kNotify);await setc.startNotifications();dinfo=await getInfo();
-   if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){userDisc=true;dev.gatt.disconnect();dev=null;toast('Login dibatalkan');return}
-   $('#nmIn').value=dinfo.name}
+  if(setc){setc.addEventListener('characteristicvaluechanged',kNotify);await setc.startNotifications();await sleep(300);
+   // info alat dicoba sampai 3x (3 detik per percobaan); kalau tetap gagal, koneksi kontrol TETAP dilanjutkan
+   for(let i=0;i<3&&!dinfo;i++){try{dinfo=await getInfo()}catch(_){await sleep(400)}}
+   if(dinfo){
+    if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){userDisc=true;dev.gatt.disconnect();dev=null;toast('Login dibatalkan');return}
+    $('#nmIn').value=dinfo.name}
+   else toast('Info alat tidak terbaca, kontrol tetap dilanjutkan',3000)}
   ctl=c0;
   await st.startNotifications();await rt.startNotifications();if(sp){sp.addEventListener('characteristicvaluechanged',e=>parseSpec(e.target.value));await sp.startNotifications()}demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));rcTry=0;toast('Terhubung');renderSet();specSync()
  }catch(e){
@@ -322,7 +326,7 @@ function kNotify(e){const dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOf
 const kRaw=b=>{const u=new Uint8Array(b);return setc.writeValueWithResponse?setc.writeValueWithResponse(u):setc.writeValue(u)};
 async function kCall(b,cmd,ms){const p=new Promise((r,j)=>{const t=setTimeout(()=>{KW.delete(cmd);j(new Error('Alat tidak merespons'))},ms||6000);KW.set(cmd,{r,t})});
  try{await kRaw(b)}catch(e){const w=KW.get(cmd);if(w){clearTimeout(w.t);KW.delete(cmd)}p.catch(()=>{});throw e}return p}
-async function getInfo(){const r=await kCall([K.INFO],K.INFO),d=r.d;const o=6+d[5];return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5])),lw:d.length>=o+4?(d[o]|d[o+1]<<8):190,lh:d.length>=o+4?(d[o+2]|d[o+3]<<8):190,ti:d.length>=o+6?(d[o+4]|d[o+5]<<8):null}}
+async function getInfo(){const r=await kCall([K.INFO],K.INFO,3000),d=r.d;const o=6+d[5];return{pinSet:!!d[0],authed:!!d[1],fs:!!d[2],lb:!!d[3],ls:!!d[4],name:new TextDecoder().decode(d.slice(6,6+d[5])),lw:d.length>=o+4?(d[o]|d[o+1]<<8):190,lh:d.length>=o+4?(d[o+2]|d[o+3]<<8):190,ti:d.length>=o+6?(d[o+4]|d[o+5]<<8):null}}
 function askPin(){return new Promise(res=>{const m=$('#pinm'),i=$('#pinv');i.value='';m.classList.add('on');setTimeout(()=>i.focus(),60);
  const done=v=>{m.classList.remove('on');$('#pinok').onclick=$('#pinno').onclick=i.onkeydown=null;res(v)};
  $('#pinok').onclick=()=>done(i.value);$('#pinno').onclick=()=>done(null);i.onkeydown=e=>{if(e.key==='Enter')done(i.value)}})}
