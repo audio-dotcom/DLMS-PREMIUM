@@ -134,7 +134,7 @@ const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],inGain:[0,0],inMute:[0,0]
  peq:[0,1,2,3,4,5].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3,4,5].map(()=>({t:0,a:10,r:100,o:4})),
  gateOn:[false,false,false,false],gateT:[-50,-50,-50,-50],gateA:[5,5,5,5],gateR:[150,150,150,150],
  genMode:0,genLevel:-20};
-let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false;const Q=new Map();
+let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false,userDisc=false,rcTry=0;const Q=new Map();
 const i16=v=>[v&255,(v>>8)&255];
 const toast=(m,ms)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||2000)};
 /* ---- BLE ---- */
@@ -150,10 +150,17 @@ const C={route:c=>send('r'+c,[1,c,S.route[c]]),gain:c=>send('g'+c,[2,c,...i16(S.
  gate:c=>send('gt'+c,[12,c,S.gateOn[c]?1:0,...i16(Math.round(S.gateT[c]*10)),...i16(Math.round(S.gateA[c])),...i16(Math.round(S.gateR[c]))]),
  xtype:(c,sisi)=>send('xt'+c+sisi,[13,c,sisi,sisi==0?S.hpfMode[c]:S.lpfMode[c]]),
  gen:()=>send('gen',[14,S.genMode,...i16(Math.round(S.genLevel*10))])};
-async function connect(){
+function onGattDown(){ctl=null;setc=null;dinfo=null;Q.clear();setSt();renderSet();
+ if(!userDisc&&dev&&rcTry<3){rcTry++;toast('Terputus, menyambung ulang ('+rcTry+'/3)...',2500);setTimeout(()=>{if(!ctl&&!userDisc)connect(true)},1200*rcTry)}}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function connect(auto){
  if(!navigator.bluetooth){toast('Web Bluetooth tidak tersedia · pakai Chrome Android/desktop');return}
- try{dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});dev.addEventListener('gattserverdisconnected',()=>{ctl=null;setc=null;dinfo=null;setSt();renderSet()});
-  const sv=await(await dev.gatt.connect()).getPrimaryService(U.svc);const c0=await sv.getCharacteristic(U.ctl);
+ if(!auto)rcTry=0;
+ try{userDisc=false;
+  if(!dev){dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});dev.addEventListener('gattserverdisconnected',onGattDown)}
+  let srv=null;
+  for(let i=0;i<3&&!srv;i++){try{srv=await dev.gatt.connect()}catch(e){if(i==2)throw e;await sleep(800*(i+1))}}
+  const sv=await srv.getPrimaryService(U.svc);const c0=await sv.getCharacteristic(U.ctl);
   const st=await sv.getCharacteristic(U.st),rt=await sv.getCharacteristic(U.rta);
   let sp=null;try{sp=await sv.getCharacteristic(U.spec)}catch(_){sp=null}   // firmware lama tidak punya spektrum -> dilewati
   st.addEventListener('characteristicvaluechanged',e=>parseSt(e.target.value));rt.addEventListener('characteristicvaluechanged',e=>{for(let i=0;i<6;i++)T[i]=e.target.value.getUint8(i)/255*60-60});
@@ -162,11 +169,17 @@ async function connect(){
   setc=null;dinfo=null;
   try{setc=await sv.getCharacteristic(U.set)}catch(_){setc=null}
   if(setc){setc.addEventListener('characteristicvaluechanged',kNotify);await setc.startNotifications();dinfo=await getInfo();
-   if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){dev.gatt.disconnect();toast('Login dibatalkan');return}
+   if(dinfo.pinSet&&!dinfo.authed&&!await loginPin()){userDisc=true;dev.gatt.disconnect();dev=null;toast('Login dibatalkan');return}
    $('#nmIn').value=dinfo.name}
   ctl=c0;
-  await st.startNotifications();await rt.startNotifications();if(sp){sp.addEventListener('characteristicvaluechanged',e=>parseSpec(e.target.value));await sp.startNotifications()}demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));toast('Terhubung');renderSet();specSync()
- }catch(e){toast('Gagal: '+(e.message||e))}}
+  await st.startNotifications();await rt.startNotifications();if(sp){sp.addEventListener('characteristicvaluechanged',e=>parseSpec(e.target.value));await sp.startNotifications()}demo=false;setSt();await ctl.writeValue(new Uint8Array([0x0B]));rcTry=0;toast('Terhubung');renderSet();specSync()
+ }catch(e){
+  // bersihkan koneksi setengah jadi supaya alat kembali advertising & bisa dicari lagi
+  const retry=auto&&rcTry<3&&dev;
+  userDisc=true;try{dev&&dev.gatt.connected&&dev.gatt.disconnect()}catch(_){}
+  ctl=null;setc=null;dinfo=null;setSt();renderSet();
+  if(retry){userDisc=false;rcTry++;toast('Gagal menyambung ulang ('+rcTry+'/3)...',2500);setTimeout(()=>{if(!ctl&&!userDisc)connect(true)},1500*rcTry)}
+  else{dev=null;toast('Gagal: '+(e.message||e))}}}
 function parseSt(v){
  if(v.byteLength<29)return;let p=0;
  for(let i=0;i<4;i++)S.route[i]=v.getUint8(p++);for(let i=0;i<4;i++,p+=2)S.gain[i]=v.getInt16(p,true);
@@ -194,7 +207,7 @@ function parseSt(v){
  }
  buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();updateGenPill()}
 function setSt(){const e=$('#st');e.className='pill '+(ctl?'on':demo?'demo':'');e.textContent=ctl?'LINKED':demo?'DEMO':'OFFLINE';$('#cn').textContent=ctl?'DISCONNECT':'CONNECT'}
-$('#cn').onclick=()=>ctl?dev.gatt.disconnect():connect();
+$('#cn').onclick=()=>{if(ctl){userDisc=true;dev.gatt.disconnect()}else connect()};
 $('#dm').onclick=()=>{demo=!demo;$('#dm').classList.toggle('on',demo);setSt()};
 /* ---- meters ---- */
 const T=Array(6).fill(-60),M=Array(6).fill(-60),P=Array(6).fill(-60);
