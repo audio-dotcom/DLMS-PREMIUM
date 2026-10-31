@@ -134,7 +134,7 @@ const S={route:[0,1,2,2],gain:[0,0,0,0],mute:[0,0,0,0],inGain:[0,0],inMute:[0,0]
  peq:[0,1,2,3,4,5].map(()=>Array.from({length:9},()=>({f:19,g:0,q:10}))),dly:[0,0,0,0],lim:[0,1,2,3,4,5].map(()=>({t:0,a:10,r:100,o:4})),
  gateOn:[false,false,false,false],gateT:[-50,-50,-50,-50],gateA:[5,5,5,5],gateR:[150,150,150,150],
  genMode:0,genLevel:-20};
-let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false,userDisc=false,rcTry=0;const Q=new Map();
+let ch=0,bd=0,tab='xo',page='dash',demo=false,ctl=null,dev=null,busy=false,userDisc=false,rcTry=0,connecting=false;const Q=new Map();
 const i16=v=>[v&255,(v>>8)&255];
 const toast=(m,ms)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||2000)};
 /* ---- BLE ---- */
@@ -151,16 +151,23 @@ const C={route:c=>send('r'+c,[1,c,S.route[c]]),gain:c=>send('g'+c,[2,c,...i16(S.
  xtype:(c,sisi)=>send('xt'+c+sisi,[13,c,sisi,sisi==0?S.hpfMode[c]:S.lpfMode[c]]),
  gen:()=>send('gen',[14,S.genMode,...i16(Math.round(S.genLevel*10))])};
 function onGattDown(){ctl=null;setc=null;dinfo=null;Q.clear();setSt();renderSet();
+ if(connecting)return;   // lagi proses connect(): kegagalan ditangani connect() sendiri, jangan dobel sambung ulang
  if(!userDisc&&dev&&rcTry<3){rcTry++;toast('Terputus, menyambung ulang ('+rcTry+'/3)...',2500);setTimeout(()=>{if(!ctl&&!userDisc)connect(true)},1200*rcTry)}}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function connect(auto){
  if(!navigator.bluetooth){toast('Web Bluetooth tidak tersedia · pakai Chrome Android/desktop');return}
+ if(connecting)return;
+ connecting=true;
  if(!auto)rcTry=0;
  try{userDisc=false;
   if(!dev){dev=await navigator.bluetooth.requestDevice({filters:[{services:[U.svc]}]});dev.addEventListener('gattserverdisconnected',onGattDown)}
-  let srv=null;
-  for(let i=0;i<3&&!srv;i++){try{srv=await dev.gatt.connect()}catch(e){if(i==2)throw e;await sleep(800*(i+1))}}
-  const sv=await srv.getPrimaryService(U.svc);const c0=await sv.getCharacteristic(U.ctl);
+  let srv=null,sv=null;
+  // connect + cari service diulang sampai 3x: kadang link putus tepat setelah tersambung
+  // (error "GATT Server is disconnected. Cannot retrieve services")
+  for(let i=0;i<3&&!sv;i++){
+   try{srv=await dev.gatt.connect();await sleep(300);sv=await srv.getPrimaryService(U.svc)}
+   catch(e){sv=null;if(i==2)throw e;try{dev.gatt.connected&&dev.gatt.disconnect()}catch(_){}await sleep(800*(i+1))}}
+  const c0=await sv.getCharacteristic(U.ctl);
   const st=await sv.getCharacteristic(U.st),rt=await sv.getCharacteristic(U.rta);
   let sp=null;try{sp=await sv.getCharacteristic(U.spec)}catch(_){sp=null}   // firmware lama tidak punya spektrum -> dilewati
   st.addEventListener('characteristicvaluechanged',e=>parseSt(e.target.value));rt.addEventListener('characteristicvaluechanged',e=>{for(let i=0;i<6;i++)T[i]=e.target.value.getUint8(i)/255*60-60});
@@ -183,7 +190,7 @@ async function connect(auto){
   userDisc=true;try{dev&&dev.gatt.connected&&dev.gatt.disconnect()}catch(_){}
   ctl=null;setc=null;dinfo=null;setSt();renderSet();
   if(retry){userDisc=false;rcTry++;toast('Gagal menyambung ulang ('+rcTry+'/3)...',2500);setTimeout(()=>{if(!ctl&&!userDisc)connect(true)},1500*rcTry)}
-  else{dev=null;toast('Gagal: '+(e.message||e))}}}
+  else{dev=null;toast('Gagal: '+(e.message||e))}}finally{connecting=false}}
 function parseSt(v){
  if(v.byteLength<29)return;let p=0;
  for(let i=0;i<4;i++)S.route[i]=v.getUint8(p++);for(let i=0;i<4;i++,p+=2)S.gain[i]=v.getInt16(p,true);
@@ -212,6 +219,8 @@ function parseSt(v){
  buildAll();if(page=='ch')buildCh();if(page=='gen')buildGen();updateGenPill()}
 function setSt(){const e=$('#st');e.className='pill '+(ctl?'on':demo?'demo':'');e.textContent=ctl?'LINKED':demo?'DEMO':'OFFLINE';$('#cn').textContent=ctl?'DISCONNECT':'CONNECT'}
 $('#cn').onclick=()=>{if(ctl){userDisc=true;dev.gatt.disconnect()}else connect()};
+// balik ke aplikasi (layar nyala lagi / pindah tab) dan koneksi sempat putus -> coba sambung ulang otomatis
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&dev&&!ctl&&!userDisc&&!connecting&&!demo){rcTry=0;connect(true)}});
 $('#dm').onclick=()=>{demo=!demo;$('#dm').classList.toggle('on',demo);setSt()};
 /* ---- meters ---- */
 const T=Array(6).fill(-60),M=Array(6).fill(-60),P=Array(6).fill(-60);
